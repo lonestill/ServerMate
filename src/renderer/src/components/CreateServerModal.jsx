@@ -1,20 +1,25 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ArrowLeft, ArrowRight, Check, Download, AlertTriangle, RefreshCw, Eye, EyeOff } from '../Icons'
 import VersionPicker from './VersionPicker'
-
-const CORES = [
-  { id: 'paper', label: 'Paper', desc: 'Рекомендуется. Быстрый, поддерживает плагины Bukkit/Spigot', badge: 'популярное' },
-  { id: 'fabric', label: 'Fabric', desc: 'Для модов. Лёгкий загрузчик модификаций', badge: null },
-  { id: 'vanilla', label: 'Vanilla', desc: 'Официальный сервер Mojang, без плагинов и модов', badge: null },
-]
+import { useLang } from '../LangContext'
 
 export default function CreateServerModal({ onClose, onCreated, existingServers = [] }) {
-  const [step, setStep] = useState(0) // 0=name, 1=core, 2=version, 3=java, 4=installing
+  const { t } = useLang()
+
+  const CORES = [
+    { id: 'paper', label: 'Paper', desc: t('paper_core_desc'), badge: t('paper_popular') },
+    { id: 'fabric', label: 'Fabric', desc: t('fabric_core_desc'), badge: null },
+    { id: 'vanilla', label: 'Vanilla', desc: t('vanilla_core_desc'), badge: null },
+  ]
+
+  const STEPS = [t('step_name'), t('step_core'), t('step_version'), t('step_java')]
+
+  const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState('')
   const [core, setCore] = useState('paper')
   const [versions, setVersions] = useState([])
-  const [allVersions, setAllVersions] = useState([]) // unfiltered
+  const [allVersions, setAllVersions] = useState([])
   const [showSnapshots, setShowSnapshots] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState('')
   const [fabricLoaders, setFabricLoaders] = useState([])
@@ -29,7 +34,7 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
   const [javaInstallPct, setJavaInstallPct] = useState(0)
   const [javaError, setJavaError] = useState('')
   const [installProgress, setInstallProgress] = useState(0)
-  const [installPhase, setInstallPhase] = useState('') // 'downloading' | 'done' | 'error'
+  const [installPhase, setInstallPhase] = useState('')
   const [installError, setInstallError] = useState('')
 
   function requiredJavaForVersion(mcVersion) {
@@ -50,23 +55,19 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
     return v.major === Math.min(...compatible.map(x => x.major))
   })
 
-  // Filter versions based on showSnapshots toggle
   useEffect(() => {
     if (!allVersions.length) return
     if (core === 'paper') {
-      // Paper only has releases
       setVersions(allVersions)
     } else {
       const filtered = showSnapshots ? allVersions : allVersions.filter(v => v.type === 'release')
       setVersions(filtered)
-      // Update selected if current is now hidden
       if (!filtered.find(v => v.id === selectedVersion)) {
         setSelectedVersion(filtered[0]?.id ?? '')
       }
     }
   }, [showSnapshots, allVersions, core])
 
-  // Load versions when reaching step 2
   useEffect(() => {
     if (step !== 2) return
     setAllVersions([])
@@ -99,7 +100,6 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
     load()
   }, [step, core])
 
-  // Load java info when reaching step 3
   useEffect(() => {
     if (step !== 3) return
     const load = async () => {
@@ -169,7 +169,6 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
       setInstallPhase('error'); setInstallError(e.message); return
     }
 
-    // Save metadata for LeftPanel display
     await window.api.saveMeta(finalName, {
       core,
       mcVersion: selectedVersion,
@@ -186,14 +185,13 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
   }
 
   function validateName() {
-    const t = name.trim()
-    if (!t) { setNameError('Введи название'); return false }
-    if (!/^[a-zA-Z0-9_\- ]+$/.test(t)) { setNameError('Только буквы, цифры, пробелы, _ и -'); return false }
-    if (isDuplicate) { setNameError(`Сервер «${sanitizedName}» уже существует`); return false }
+    const v = name.trim()
+    if (!v) { setNameError(t('allowed_chars')); return false }
+    if (!/^[a-zA-Z0-9_\- ]+$/.test(v)) { setNameError(t('allowed_chars')); return false }
+    if (isDuplicate) { setNameError(t('name_duplicate', { name: sanitizedName })); return false }
     return true
   }
 
-  // Real-time duplicate check
   const sanitizedName = name.trim().replace(/\s+/g, '-')
   const isDuplicate = sanitizedName.length > 0 && existingServers.some(s => s.name.toLowerCase() === sanitizedName.toLowerCase())
 
@@ -208,10 +206,8 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
     : step === 3 ? (javaOk && !loadingJava && !javaInstalling)
     : true
 
-  const STEPS = ['Название', 'Ядро', 'Версия', 'Java']
   const isInstalling = step === 4
 
-  // Prevent closing during install
   function handleOverlayClick(e) {
     if (e.target !== e.currentTarget) return
     if (isInstalling && installPhase === 'downloading') return
@@ -225,9 +221,8 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
       onClick={handleOverlayClick}
     >
       <div className="bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl w-[480px] max-h-[80vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a35]">
-          <p className="text-[14px] font-semibold text-[#ecedee]">Новый сервер</p>
+          <p className="text-[14px] font-semibold text-[#ecedee]">{t('new_server_modal')}</p>
           {(!isInstalling || installPhase === 'error') && (
             <button onClick={onClose} className="text-[#55556a] hover:text-[#8b8b9e] transition-colors">
               <X size={15} />
@@ -235,7 +230,6 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
           )}
         </div>
 
-        {/* Step indicator */}
         {!isInstalling && (
           <div className="flex items-center px-5 py-3 border-b border-[#2a2a35]">
             {STEPS.map((s, i) => (
@@ -256,7 +250,6 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
           </div>
         )}
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-5">
           {step === 0 && (
             <StepName
@@ -269,7 +262,7 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
               onNext={next}
             />
           )}
-          {step === 1 && <StepCore core={core} setCore={setCore} onNext={next} />}
+          {step === 1 && <StepCore core={core} setCore={setCore} cores={CORES} onNext={next} />}
           {step === 2 && (
             <StepVersion
               core={core}
@@ -317,7 +310,6 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
           )}
         </div>
 
-        {/* Footer */}
         {!isInstalling && (
           <div className="flex items-center justify-between px-5 py-4 border-t border-[#2a2a35]">
             <button
@@ -325,7 +317,7 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
               className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#55556a] hover:text-[#8b8b9e] transition-colors"
             >
               {step > 0 && <ArrowLeft size={13} />}
-              {step === 0 ? 'Отмена' : 'Назад'}
+              {step === 0 ? t('cancel') : t('back')}
             </button>
 
             <button
@@ -334,9 +326,9 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
               className="flex items-center gap-1.5 px-4 py-2 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-30 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors"
             >
               {step === STEPS.length - 1 ? (
-                <><Download size={13} strokeWidth={2.5} /> Установить</>
+                <><Download size={13} strokeWidth={2.5} /> {t('install')}</>
               ) : (
-                <>Далее <ArrowRight size={13} /></>
+                <>{t('next')} <ArrowRight size={13} /></>
               )}
             </button>
           </div>
@@ -347,25 +339,23 @@ export default function CreateServerModal({ onClose, onCreated, existingServers 
 }
 
 function StepName({ name, setName, error, setError, isDuplicate, sanitizedName, onNext }) {
+  const { t } = useLang()
+
   function handleChange(e) {
     setName(e.target.value)
     setError('')
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === 'Enter') onNext()
   }
 
   const showSanitized = name.includes(' ') && sanitizedName && sanitizedName !== name.trim()
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[13px] text-[#8b8b9e] mb-2">Как назовём сервер?</p>
+      <p className="text-[13px] text-[#8b8b9e] mb-2">{t('how_to_name')}</p>
       <input
         type="text"
         value={name}
         onChange={handleChange}
-        onKeyDown={handleKeyDown}
+        onKeyDown={(e) => e.key === 'Enter' && onNext()}
         placeholder="my-server"
         autoFocus
         className={`bg-[#17171c] border rounded-lg px-3 py-2.5 text-[13px] text-[#ecedee] placeholder-[#33334a] outline-none transition-colors ${
@@ -375,23 +365,24 @@ function StepName({ name, setName, error, setError, isDuplicate, sanitizedName, 
       />
       {error && <span className="text-[11px] text-red-400">{error}</span>}
       {!error && isDuplicate && (
-        <span className="text-[11px] text-red-400">Сервер «{sanitizedName}» уже существует</span>
+        <span className="text-[11px] text-red-400">"{sanitizedName}" {t('already_exists')}</span>
       )}
       {!error && !isDuplicate && showSanitized && (
-        <span className="text-[11px] text-[#55556a]">Пробелы будут заменены на дефисы: <span className="text-[#8b8b9e]">{sanitizedName}</span></span>
+        <span className="text-[11px] text-[#55556a]">{t('spaces_replaced')} <span className="text-[#8b8b9e]">{sanitizedName}</span></span>
       )}
       {!error && !isDuplicate && !showSanitized && (
-        <p className="text-[11px] text-[#33334a]">Буквы, цифры, пробелы, _ и -</p>
+        <p className="text-[11px] text-[#33334a]">{t('allowed_chars')}</p>
       )}
     </div>
   )
 }
 
-function StepCore({ core, setCore, onNext }) {
+function StepCore({ core, setCore, cores, onNext }) {
+  const { t } = useLang()
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[13px] text-[#8b8b9e] mb-2">Выбери тип ядра</p>
-      {CORES.map((c) => (
+      <p className="text-[13px] text-[#8b8b9e] mb-2">{t('choose_core')}</p>
+      {cores.map((c) => (
         <label
           key={c.id}
           onDoubleClick={() => { setCore(c.id); onNext() }}
@@ -417,29 +408,30 @@ function StepCore({ core, setCore, onNext }) {
 }
 
 function StepVersion({ core, versions, selectedVersion, setSelectedVersion, fabricLoaders, selectedLoader, setSelectedLoader, loading, showSnapshots, setShowSnapshots }) {
+  const { t } = useLang()
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] text-[#8b8b9e]">Выбери версию Minecraft</p>
+        <p className="text-[13px] text-[#8b8b9e]">{t('choose_mc_version')}</p>
         {core !== 'paper' && (
           <button
             onClick={() => setShowSnapshots(v => !v)}
             className="flex items-center gap-1 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors"
           >
             {showSnapshots ? <Eye size={11} /> : <EyeOff size={11} />}
-            {showSnapshots ? 'Скрыть снапшоты' : 'Показать снапшоты'}
+            {showSnapshots ? t('hide_snapshots') : t('show_snapshots')}
           </button>
         )}
       </div>
       {loading ? (
         <div className="flex items-center gap-2 text-[12px] text-[#55556a]">
           <div className="w-3 h-3 rounded-full border border-[#55556a] border-t-transparent animate-spin" />
-          Загрузка версий…
+          {t('loading_versions_create')}
         </div>
       ) : (
         <>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-medium text-[#8b8b9e]">Версия</label>
+            <label className="text-[11px] font-medium text-[#8b8b9e]">{t('step_version')}</label>
             <VersionPicker versions={versions} value={selectedVersion} onChange={setSelectedVersion} />
           </div>
           {core === 'fabric' && fabricLoaders.length > 0 && (
@@ -455,13 +447,15 @@ function StepVersion({ core, versions, selectedVersion, setSelectedVersion, fabr
 }
 
 function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recommendedInstall, loading, installing, installPhase, installPct, error, onInstall, onRescan }) {
+  const { t } = useLang()
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-[#1bd96a] border-t-transparent animate-spin" />
         <div className="text-center">
-          <p className="text-[13px] text-[#ecedee]">Проверяем Java…</p>
-          <p className="text-[11px] text-[#55556a] mt-1">Ищем установленные версии и загружаем список из интернета</p>
+          <p className="text-[13px] text-[#ecedee]">{t('checking_java_title')}</p>
+          <p className="text-[11px] text-[#55556a] mt-1">{t('checking_java_desc')}</p>
         </div>
       </div>
     )
@@ -473,15 +467,15 @@ function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recomm
         <div className="flex items-center gap-2.5 p-3 rounded-lg bg-[#1bd96a10] border border-[#1bd96a25]">
           <Check size={14} className="text-[#1bd96a] shrink-0" strokeWidth={3} />
           <p className="text-[12px] text-[#1bd96a] font-medium">
-            Java {javas.find(j => j.major >= requiredJava)?.major} найдена — всё готово
+            {t('java_found_ready', { major: javas.find(j => j.major >= requiredJava)?.major })}
           </p>
         </div>
       ) : (
         <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
           <AlertTriangle size={14} className="text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-[12px] font-medium text-red-300">Java {requiredJava}+ не найдена</p>
-            <p className="text-[11px] text-red-400/70 mt-0.5">Для выбранной версии Minecraft нужна Java {requiredJava}+</p>
+            <p className="text-[12px] font-medium text-red-300">{t('java_not_found_create', { required: requiredJava })}</p>
+            <p className="text-[11px] text-red-400/70 mt-0.5">{t('java_for_mc', { required: requiredJava })}</p>
           </div>
         </div>
       )}
@@ -491,15 +485,15 @@ function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recomm
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-[13px] font-semibold text-[#ecedee]">Java {recommendedInstall.major}</p>
-              <p className="text-[11px] text-[#55556a] mt-0.5">{(recommendedInstall.size / 1024 / 1024).toFixed(0)} MB · без прав администратора</p>
+              <p className="text-[11px] text-[#55556a] mt-0.5">{(recommendedInstall.size / 1024 / 1024).toFixed(0)} MB · {t('no_admin_create')}</p>
             </div>
-            <span className="text-[10px] text-[#1bd96a] bg-[#1bd96a15] px-2 py-1 rounded font-medium">рекомендуется</span>
+            <span className="text-[10px] text-[#1bd96a] bg-[#1bd96a15] px-2 py-1 rounded font-medium">{t('recommended_badge')}</span>
           </div>
 
           {installing === recommendedInstall.major && installPhase !== 'done' ? (
             <div>
               <div className="flex justify-between text-[10px] text-[#55556a] mb-1.5">
-                <span>{installPhase === 'download' ? 'Скачивание…' : 'Установка…'}</span>
+                <span>{installPhase === 'download' ? t('downloading_progress') : t('installing_progress')}</span>
                 {installPhase === 'download' && <span>{installPct}%</span>}
               </div>
               <div className="h-1.5 bg-[#26262f] rounded-full overflow-hidden">
@@ -511,7 +505,7 @@ function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recomm
             </div>
           ) : installing === recommendedInstall.major && installPhase === 'done' ? (
             <div className="flex items-center gap-1.5 text-[12px] text-[#1bd96a]">
-              <Check size={13} strokeWidth={3} /> Установлено
+              <Check size={13} strokeWidth={3} /> {t('installed_ok')}
             </div>
           ) : (
             <button
@@ -520,31 +514,31 @@ function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recomm
               className="w-full flex items-center justify-center gap-2 py-2 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[12px] font-semibold rounded-lg transition-colors disabled:opacity-40"
             >
               <Download size={13} strokeWidth={2.5} />
-              Установить Java {recommendedInstall.major}
+              {t('install')} Java {recommendedInstall.major}
             </button>
           )}
         </div>
       )}
 
       {!hasCompatible && !recommendedInstall && installableJavas.length === 0 && (
-        <p className="text-[11px] text-[#55556a]">Не удалось загрузить список установщиков — проверь интернет</p>
+        <p className="text-[11px] text-[#55556a]">{t('failed_to_load')}</p>
       )}
 
       {error && <p className="text-[11px] text-red-400">{error}</p>}
 
       <button onClick={onRescan} className="flex items-center gap-1.5 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors w-fit">
-        <RefreshCw size={11} /> Повторное сканирование
+        <RefreshCw size={11} /> {t('rescan')}
       </button>
 
       {hasCompatible && (
         <div className="flex flex-col gap-1.5">
-          <p className="text-[11px] font-medium text-[#8b8b9e]">Совместимые установки</p>
+          <p className="text-[11px] font-medium text-[#8b8b9e]">{t('compatible_installs')}</p>
           {javas.filter(j => j.major >= requiredJava).map(j => (
             <div key={j.path} className="flex items-center gap-2 px-3 py-2 bg-[#17171c] border border-[#2a2a35] rounded-lg">
               <div className="w-1.5 h-1.5 rounded-full bg-[#1bd96a]" />
               <span className="text-[12px] text-[#ecedee]">Java {j.major}</span>
               <span className="text-[11px] text-[#55556a] truncate">{j.path}</span>
-              {j.local && <span className="text-[10px] text-[#55556a] bg-[#26262f] px-1.5 py-0.5 rounded shrink-0">ServerMate</span>}
+              {j.local && <span className="text-[10px] text-[#55556a] bg-[#26262f] px-1.5 py-0.5 rounded shrink-0">{t('servermate_badge')}</span>}
             </div>
           ))}
         </div>
@@ -554,19 +548,20 @@ function StepJava({ requiredJava, javas, hasCompatible, installableJavas, recomm
 }
 
 function StepInstalling({ serverName, core, version, phase, progress, error, onRetry, onClose }) {
+  const { t } = useLang()
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-4">
       {phase === 'downloading' && (
         <>
           <div className="w-10 h-10 rounded-full border-2 border-[#1bd96a] border-t-transparent animate-spin" />
           <div className="text-center">
-            <p className="text-[13px] font-semibold text-[#ecedee]">Скачивание {core} {version}…</p>
+            <p className="text-[13px] font-semibold text-[#ecedee]">{t('downloading_server', { core, version })}</p>
             <p className="text-[11px] text-[#55556a] mt-1">{progress}%</p>
           </div>
           <div className="w-48 h-1.5 bg-[#26262f] rounded-full overflow-hidden">
             <div className="h-full bg-[#1bd96a] rounded-full transition-all" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-[10px] text-[#33334a]">Не закрывай окно</p>
+          <p className="text-[10px] text-[#33334a]">{t('do_not_close')}</p>
         </>
       )}
       {phase === 'done' && (
@@ -575,8 +570,8 @@ function StepInstalling({ serverName, core, version, phase, progress, error, onR
             <Check size={22} className="text-[#1bd96a]" strokeWidth={3} />
           </div>
           <div className="text-center">
-            <p className="text-[13px] font-semibold text-[#ecedee]">Сервер «{serverName}» создан!</p>
-            <p className="text-[11px] text-[#55556a] mt-1">Открываю…</p>
+            <p className="text-[13px] font-semibold text-[#ecedee]">{t('server_created_msg', { name: serverName })}</p>
+            <p className="text-[11px] text-[#55556a] mt-1">{t('opening')}</p>
           </div>
         </>
       )}
@@ -586,7 +581,7 @@ function StepInstalling({ serverName, core, version, phase, progress, error, onR
             <AlertTriangle size={22} className="text-red-400" />
           </div>
           <div className="text-center">
-            <p className="text-[13px] font-semibold text-red-300">Ошибка установки</p>
+            <p className="text-[13px] font-semibold text-red-300">{t('install_error')}</p>
             <p className="text-[11px] text-red-400/70 mt-1 max-w-xs">{error}</p>
           </div>
           <div className="flex items-center gap-3 mt-2">
@@ -594,13 +589,13 @@ function StepInstalling({ serverName, core, version, phase, progress, error, onR
               onClick={onRetry}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[12px] font-semibold rounded-lg transition-colors"
             >
-              <RefreshCw size={13} /> Повторить
+              <RefreshCw size={13} /> {t('retry')}
             </button>
             <button
               onClick={onClose}
               className="px-4 py-2 text-[12px] text-[#55556a] hover:text-[#8b8b9e] transition-colors"
             >
-              Закрыть
+              {t('close')}
             </button>
           </div>
         </>

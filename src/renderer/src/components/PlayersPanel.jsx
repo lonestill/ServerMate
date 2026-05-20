@@ -1,15 +1,18 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { UserX, ShieldOff, Trash2, Plus, RefreshCw, Users, Shield, Ban, Wifi } from '../Icons'
-
-const TABS = [
-  { id: 'online',    label: 'Онлайн',          icon: Users },
-  { id: 'whitelist', label: 'Вайтлист',         icon: Users },
-  { id: 'ops',       label: 'Операторы',        icon: Shield },
-  { id: 'banned',    label: 'Баны',             icon: Ban },
-  { id: 'bannedIps', label: 'Забаненные IP',    icon: Wifi },
-]
+import { useLang } from '../LangContext'
 
 export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) {
+  const { t } = useLang()
+
+  const TABS = [
+    { id: 'online',    labelKey: 'tab_online',      icon: Users },
+    { id: 'whitelist', labelKey: 'tab_whitelist',   icon: Users },
+    { id: 'ops',       labelKey: 'tab_ops',         icon: Shield },
+    { id: 'banned',    labelKey: 'tab_banned',      icon: Ban },
+    { id: 'bannedIps', labelKey: 'tab_banned_ips',  icon: Wifi },
+  ]
+
   const [data, setData] = useState(null)
   const [tab, setTab] = useState('whitelist')
   const [addName, setAddName] = useState('')
@@ -31,19 +34,19 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
   async function handleAdd() {
     const name = addName.trim()
     if (!name) return
-    if (!/^\w{2,16}$/.test(name)) { setAddError('Никнейм: 2–16 символов, только буквы/цифры/_'); return }
+    if (!/^\w{2,16}$/.test(name)) { setAddError(t('nick_validation')); return }
     setAdding(true)
     setAddError('')
     try {
       if (tab === 'whitelist') {
         if (isRunning) await window.api.sendCommand(`whitelist add ${name}`)
         const res = await window.api.addWhitelist(server.name, name)
-        if (res && !res.ok) setAddError(res.error || 'Ошибка')
+        if (res && !res.ok) setAddError(res.error || t('error'))
       } else if (tab === 'ops') {
         if (isRunning) {
           await window.api.sendCommand(`op ${name}`)
         } else {
-          setAddError('Сервер должен быть запущен для выдачи OP')
+          setAddError(t('server_not_running_players'))
           setAdding(false)
           return
         }
@@ -51,7 +54,7 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
         if (isRunning) {
           await window.api.sendCommand(`ban ${name}`)
         } else {
-          setAddError('Сервер должен быть запущен для бана')
+          setAddError(t('server_not_running_players'))
           setAdding(false)
           return
         }
@@ -82,14 +85,13 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
   }
 
   const canAdd = tab !== 'online' && (tab === 'whitelist' || tab === 'ops' || tab === 'banned')
-  const addPlaceholder = tab === 'ops' ? 'Никнейм для /op…' : tab === 'banned' ? 'Никнейм для /ban…' : 'Никнейм игрока…'
-  const addLabel = tab === 'ops' ? 'Выдать OP' : tab === 'banned' ? 'Забанить' : 'Добавить'
+  const addPlaceholder = tab === 'ops' ? t('add_ops_ph') : tab === 'banned' ? t('add_ban_ph') : t('add_whitelist_ph')
+  const addLabel = tab === 'ops' ? t('add_ops_label') : tab === 'banned' ? t('add_ban_label') : t('add_whitelist_label')
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sub-tabs */}
       <div className="flex items-center gap-1 px-5 py-2.5 border-b border-[#2a2a35] bg-[#111116] shrink-0">
-        {TABS.map(({ id, label, icon: Icon }) => {
+        {TABS.map(({ id, labelKey, icon: Icon }) => {
           const count = id === 'online' ? onlinePlayers.length : data?.[id]?.length
           const active = tab === id
           return (
@@ -101,7 +103,7 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
               }`}
             >
               <Icon size={12} />
-              {label}
+              {t(labelKey)}
               {count !== undefined && count > 0 && (
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-[#1bd96a25] text-[#1bd96a]' : 'bg-[#26262f] text-[#55556a]'}`}>
                   {count}
@@ -121,13 +123,13 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
             {!isRunning ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <Users size={32} className="text-[#2a2a35]" />
-                <p className="text-[13px] text-[#55556a]">Сервер не запущен</p>
-                <p className="text-[11px] text-[#33334a]">Игроки онлайн появятся здесь после запуска</p>
+                <p className="text-[13px] text-[#55556a]">{t('server_not_running_players')}</p>
+                <p className="text-[11px] text-[#33334a]">{t('players_appear_after_start')}</p>
               </div>
             ) : onlinePlayers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <Users size={32} className="text-[#2a2a35]" />
-                <p className="text-[13px] text-[#55556a]">Нет игроков онлайн</p>
+                <p className="text-[13px] text-[#55556a]">{t('no_players_online')}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -136,13 +138,13 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
                     <PlayerAvatar name={name} uuid={null} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-[#ecedee]">{name}</p>
-                      <p className="text-[10px] text-[#1bd96a]">онлайн</p>
+                      <p className="text-[10px] text-[#1bd96a]">{t('online_label')}</p>
                     </div>
                     <button
                       onClick={() => window.api.sendCommand(`kick ${name}`)}
                       className="opacity-0 group-hover:opacity-100 px-2.5 py-1 text-[11px] text-[#55556a] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                     >
-                      Кик
+                      {t('kick')}
                     </button>
                   </div>
                 ))}
@@ -151,12 +153,11 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
           </div>
         ) : notGenerated ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <p className="text-[13px] text-[#55556a]">Файл ещё не создан</p>
-            <p className="text-[11px] text-[#33334a]">Запусти сервер хотя бы один раз</p>
+            <p className="text-[13px] text-[#55556a]">{t('file_not_created')}</p>
+            <p className="text-[11px] text-[#33334a]">{t('run_once')}</p>
           </div>
         ) : (
           <div className="max-w-lg flex flex-col gap-3">
-            {/* Add player (whitelist only) */}
             {canAdd && (
               <div className="flex gap-2">
                 <input
@@ -185,14 +186,13 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
               <div className="py-2">
                 <div className="flex items-start gap-2 p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-lg">
                   <p className="text-[11px] text-[#55556a]">
-                    Белый список пуст. Включи его в Настройках (white-list = true), затем добавляй игроков.
-                    {isRunning && ' Изменения применяются сразу через /whitelist reload.'}
+                    {t('whitelist_empty_hint')}
+                    {isRunning && t('whitelist_running_hint')}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Player list */}
             {currentList.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 {currentList.map((item, i) => (
@@ -206,18 +206,12 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
               </div>
             )}
 
-            {/* Ops info */}
             {tab === 'ops' && currentList.length === 0 && (
-              <p className="text-[11px] text-[#55556a] py-4 text-center">
-                Нет операторов. Добавь через консоль: /op НикнейМ
-              </p>
+              <p className="text-[11px] text-[#55556a] py-4 text-center">{t('no_ops_hint')}</p>
             )}
 
-            {/* Bans info */}
             {(tab === 'banned' || tab === 'bannedIps') && currentList.length === 0 && (
-              <p className="text-[11px] text-[#55556a] py-4 text-center">
-                Список пуст
-              </p>
+              <p className="text-[11px] text-[#55556a] py-4 text-center">{t('list_empty')}</p>
             )}
           </div>
         )}
@@ -227,10 +221,15 @@ export default function PlayersPanel({ server, isRunning, onlinePlayers = [] }) 
 }
 
 function PlayerRow({ item, tab, onRemove }) {
+  const { t } = useLang()
   const [confirm, setConfirm] = useState(false)
 
   const displayName = item.name || item.ip || '?'
-  const sub = tab === 'ops' ? `Уровень ${item.level ?? '?'}` : item.created ? `С ${new Date(item.created).toLocaleDateString('ru')}` : null
+  const sub = tab === 'ops'
+    ? t('op_level', { level: item.level ?? '?' })
+    : item.created
+      ? t('since_date', { date: new Date(item.created).toLocaleDateString() })
+      : null
   const reason = item.reason && item.reason !== '' ? item.reason : null
 
   function RemoveIcon() {
@@ -240,9 +239,9 @@ function PlayerRow({ item, tab, onRemove }) {
   }
 
   function removeLabel() {
-    if (tab === 'whitelist') return 'Убрать'
-    if (tab === 'ops') return 'Снять OP'
-    return 'Помиловать'
+    if (tab === 'whitelist') return t('remove_whitelist')
+    if (tab === 'ops') return t('remove_ops')
+    return t('remove_ban')
   }
 
   return (
@@ -251,15 +250,15 @@ function PlayerRow({ item, tab, onRemove }) {
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium text-[#ecedee]">{displayName}</p>
         {sub && <p className="text-[10px] text-[#55556a]">{sub}</p>}
-        {reason && <p className="text-[10px] text-[#55556a]">Причина: {reason}</p>}
+        {reason && <p className="text-[10px] text-[#55556a]">{t('reason_label', { reason })}</p>}
       </div>
       {confirm ? (
         <div className="flex items-center gap-1.5">
           <button onClick={() => { onRemove(); setConfirm(false) }} className="px-2 py-1 text-[11px] bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg transition-colors">
-            Да
+            {t('yes')}
           </button>
           <button onClick={() => setConfirm(false)} className="px-2 py-1 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors">
-            Нет
+            {t('no')}
           </button>
         </div>
       ) : (
