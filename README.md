@@ -12,6 +12,19 @@
 
 ---
 
+## Screenshots
+
+<div align="center">
+
+<img src="https://i.imgur.com/OLOpjEf.png" width="49%" /> <img src="https://i.imgur.com/HrAl8jN.png" width="49%" />
+<img src="https://i.imgur.com/9KSeRl9.png" width="49%" /> <img src="https://i.imgur.com/6PCNWjf.png" width="49%" />
+<img src="https://i.imgur.com/DXNF759.png" width="49%" /> <img src="https://i.imgur.com/pYjLVGJ.png" width="49%" />
+<img src="https://i.imgur.com/3HHjlb8.png" width="49%" /> <img src="https://i.imgur.com/F1DB4Nj.png" width="49%" />
+
+</div>
+
+---
+
 ## English
 
 ServerMate is a desktop application for managing Minecraft servers — create, configure, and run them without touching the terminal.
