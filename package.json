@@ -70,9 +70,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": [
-        "Russian"
-      ],
+      "installerLanguages": ["ru"],
       "language": "1049",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
