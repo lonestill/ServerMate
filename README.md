@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="build/icon.png" width="120" alt="ServerMate" />
+
 # ServerMate
 
 **Minecraft server manager for Windows & Linux**
