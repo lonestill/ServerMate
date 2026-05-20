@@ -1,0 +1,106 @@
+{
+  "name": "servermate",
+  "version": "1.0.0",
+  "description": "Minecraft server manager for Windows",
+  "main": "out/main/index.js",
+  "author": "ServerMate",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "dist": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-vite build && electron-builder --win nsis",
+    "dist:portable": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-vite build && electron-builder --win portable",
+    "dist:all": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-vite build && electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "@tabler/icons-react": "^3.44.0",
+    "clsx": "^2.1.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tailwind-merge": "^2.2.2"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "cross-env": "^10.1.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^2.2.0",
+    "png-to-ico": "^3.0.1",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "vite": "^5.2.8"
+  },
+  "build": {
+    "appId": "com.servermate.app",
+    "productName": "ServerMate",
+    "copyright": "Copyright © 2025 ServerMate",
+    "icon": "build/icon.ico",
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "out/**/*",
+      "!out/**/*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "Russian"
+      ],
+      "language": "1049",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ServerMate",
+      "artifactName": "${productName}-${version}-setup.exe"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    }
+  }
+}
