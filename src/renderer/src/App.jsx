@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { LangProvider, useLang } from './LangContext'
 import LeftPanel from './components/LeftPanel'
 import ServerPanel from './components/ServerPanel'
 import CreateServerModal from './components/CreateServerModal'
@@ -6,6 +7,15 @@ import { Plus, AlertTriangle, Check, X, FolderInput } from './Icons'
 import AppSettings from './components/AppSettings'
 
 export default function App() {
+  return (
+    <LangProvider>
+      <AppInner />
+    </LangProvider>
+  )
+}
+
+function AppInner() {
+  const { lang, setLang, t } = useLang()
   const [servers, setServers] = useState([])
   const [selected, setSelected] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -23,7 +33,6 @@ export default function App() {
     return list
   }
 
-  // Sync running state from main process (handles tray reopen + true restarts)
   async function syncStatus() {
     const status = await window.api.getStatus()
     setRunningServer(status.running && status.name ? status.name : null)
@@ -31,13 +40,10 @@ export default function App() {
 
   useEffect(() => {
     refreshServers().then(async list => {
-      // Sync server running state first
       await syncStatus()
-
-      // Autostart: find first server with autostart=true that has a jar
       if (autostartedRef.current) return
       const status = await window.api.getStatus()
-      if (status.running) { autostartedRef.current = true; return } // already running
+      if (status.running) { autostartedRef.current = true; return }
       const toStart = list.find(s => s.autostart && s.hasJar)
       if (toStart) {
         autostartedRef.current = true
@@ -48,17 +54,15 @@ export default function App() {
       }
     })
 
-    // Re-sync every time the window gains focus (e.g. restored from tray)
     window.addEventListener('focus', syncStatus)
     return () => window.removeEventListener('focus', syncStatus)
   }, [])
 
-  // Keep selected in sync when servers list changes
   useEffect(() => {
     if (!selected) return
     const updated = servers.find(s => s.name === selected.name)
     if (updated) setSelected(updated)
-    else setSelected(servers[0] ?? null) // deleted server → pick first
+    else setSelected(servers[0] ?? null)
   }, [servers])
 
   async function handleDeleteServer(server) {
@@ -84,6 +88,11 @@ export default function App() {
       if (updated) setSelected(updated)
     }
     return null
+  }
+
+  // Show language picker on first launch
+  if (lang === null) {
+    return <LangPickerModal onSelect={setLang} />
   }
 
   return (
@@ -166,7 +175,40 @@ export default function App() {
   )
 }
 
+function LangPickerModal({ onSelect }) {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center" style={{ background: '#17171c' }}>
+      <div className="bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl w-[320px] p-6 flex flex-col items-center gap-5">
+        <div className="w-10 h-10 rounded-xl bg-[#1bd96a] flex items-center justify-center shadow-[0_0_16px_#1bd96a60]">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-[15px] font-semibold text-[#ecedee]">Choose language / Выберите язык</p>
+          <p className="text-[11px] text-[#55556a] mt-1">You can change it later in settings / Можно изменить в настройках</p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={() => onSelect('en')}
+            className="flex-1 py-2.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] hover:border-[#1bd96a40] text-[#ecedee] text-[13px] font-semibold rounded-xl transition-all"
+          >
+            English
+          </button>
+          <button
+            onClick={() => onSelect('ru')}
+            className="flex-1 py-2.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] hover:border-[#1bd96a40] text-[#ecedee] text-[13px] font-semibold rounded-xl transition-all"
+          >
+            Русский
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EmptyState({ onCreateServer, onImportServer }) {
+  const { t } = useLang()
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4">
       <div className="w-16 h-16 rounded-2xl bg-[#1e1e26] border border-[#2a2a35] flex items-center justify-center mb-2">
@@ -176,21 +218,21 @@ function EmptyState({ onCreateServer, onImportServer }) {
         </svg>
       </div>
       <div className="text-center">
-        <p className="text-[14px] font-medium text-[#55556a]">Нет выбранного сервера</p>
-        <p className="text-[12px] text-[#33334a] mt-1">Создай новый или импортируй существующий</p>
+        <p className="text-[14px] font-medium text-[#55556a]">{t('no_server_selected')}</p>
+        <p className="text-[12px] text-[#33334a] mt-1">{t('create_or_import_hint')}</p>
       </div>
       <div className="flex gap-2">
         <button
           onClick={onCreateServer}
           className="flex items-center gap-2 px-4 py-2 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[12px] font-semibold rounded-lg transition-colors"
         >
-          <Plus size={13} /> Создать сервер
+          <Plus size={13} /> {t('create_server')}
         </button>
         <button
           onClick={onImportServer}
           className="flex items-center gap-2 px-4 py-2 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] text-[#8b8b9e] text-[12px] rounded-lg transition-colors"
         >
-          <FolderInput size={13} /> Импорт
+          <FolderInput size={13} /> {t('import')}
         </button>
       </div>
     </div>
@@ -198,6 +240,7 @@ function EmptyState({ onCreateServer, onImportServer }) {
 }
 
 function ImportModal({ existingServers, onClose, onImported }) {
+  const { t } = useLang()
   const [sourcePath, setSourcePath] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
@@ -210,7 +253,6 @@ function ImportModal({ existingServers, onClose, onImported }) {
     const path = await window.api.showFolderDialog()
     if (!path) return
     setSourcePath(path)
-    // Auto-fill name from folder name
     const folderName = path.split(/[\\/]/).pop()
     setName(folderName)
     setError('')
@@ -218,10 +260,10 @@ function ImportModal({ existingServers, onClose, onImported }) {
 
   async function handleImport(e) {
     e.preventDefault()
-    if (!sourcePath) { setError('Выбери папку'); return }
-    if (!sanitized) { setError('Введи название'); return }
-    if (isDuplicate) { setError(`Сервер «${sanitized}» уже существует`); return }
-    if (!/^[a-zA-Z0-9_\-а-яА-ЯёЁ]+$/.test(sanitized)) { setError('Только буквы, цифры, _ и -'); return }
+    if (!sourcePath) { setError(t('select_folder')); return }
+    if (!sanitized) { setError(t('enter_name')); return }
+    if (isDuplicate) { setError(t('already_exists', { name: sanitized })); return }
+    if (!/^[a-zA-Z0-9_\-а-яА-ЯёЁ]+$/.test(sanitized)) { setError(t('letters_nums_only')); return }
     setImporting(true)
     const res = await window.api.importServer({ sourcePath, serverName: sanitized })
     if (!res.ok) { setError(res.error); setImporting(false); return }
@@ -232,13 +274,13 @@ function ImportModal({ existingServers, onClose, onImported }) {
     <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl w-[420px] p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[14px] font-semibold text-[#ecedee]">Импорт сервера</p>
+          <p className="text-[14px] font-semibold text-[#ecedee]">{t('import_server')}</p>
           <button onClick={onClose} className="text-[#33334a] hover:text-[#55556a]"><X size={15} /></button>
         </div>
 
         <form onSubmit={handleImport} className="flex flex-col gap-3">
           <div>
-            <label className="block text-[11px] text-[#55556a] mb-1.5">Папка сервера</label>
+            <label className="block text-[11px] text-[#55556a] mb-1.5">{t('server_folder')}</label>
             <button
               type="button"
               onClick={pickFolder}
@@ -246,32 +288,32 @@ function ImportModal({ existingServers, onClose, onImported }) {
             >
               <FolderInput size={14} className="text-[#55556a] shrink-0" />
               <span className={`text-[12px] truncate ${sourcePath ? 'text-[#ecedee]' : 'text-[#33334a]'}`}>
-                {sourcePath || 'Нажми чтобы выбрать…'}
+                {sourcePath || t('click_to_select')}
               </span>
             </button>
           </div>
 
           <div>
-            <label className="block text-[11px] text-[#55556a] mb-1.5">Название в ServerMate</label>
+            <label className="block text-[11px] text-[#55556a] mb-1.5">{t('name_in_app')}</label>
             <input
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); setError('') }}
-              placeholder="Мой сервер"
+              placeholder="my-server"
               className={`w-full bg-[#17171c] border rounded-lg px-3 py-2.5 text-[13px] text-[#ecedee] outline-none transition-colors ${
                 isDuplicate || error ? 'border-red-500/60' : 'border-[#2a2a35] focus:border-[#1bd96a]'
               }`}
               style={{ userSelect: 'text' }}
             />
-            {!error && isDuplicate && <p className="text-[11px] text-red-400 mt-1">Сервер «{sanitized}» уже существует</p>}
+            {!error && isDuplicate && <p className="text-[11px] text-red-400 mt-1">{t('already_exists', { name: sanitized })}</p>}
             {!error && name.includes(' ') && !isDuplicate && (
-              <p className="text-[11px] text-[#55556a] mt-1">Пробелы → дефисы: <span className="text-[#8b8b9e]">{sanitized}</span></p>
+              <p className="text-[11px] text-[#55556a] mt-1">{t('spaces_to_dashes')} <span className="text-[#8b8b9e]">{sanitized}</span></p>
             )}
           </div>
 
           {error && <p className="text-[11px] text-red-400">{error}</p>}
 
-          <p className="text-[11px] text-[#33334a]">Папка будет скопирована в хранилище ServerMate. Оригинал останется на месте.</p>
+          <p className="text-[11px] text-[#33334a]">{t('folder_copy_note')}</p>
 
           <div className="flex gap-2 mt-1">
             <button
@@ -279,10 +321,10 @@ function ImportModal({ existingServers, onClose, onImported }) {
               disabled={importing || !sourcePath || !sanitized || isDuplicate}
               className="flex-1 py-2 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-40 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors"
             >
-              {importing ? 'Импорт…' : 'Импортировать'}
+              {importing ? t('importing') : t('import_btn')}
             </button>
             <button type="button" onClick={onClose} className="flex-1 py-2 bg-[#26262f] hover:bg-[#2e2e3a] text-[#8b8b9e] text-[12px] rounded-lg transition-colors">
-              Отмена
+              {t('cancel')}
             </button>
           </div>
         </form>
@@ -292,6 +334,7 @@ function ImportModal({ existingServers, onClose, onImported }) {
 }
 
 function DeleteModal({ server, isRunning, error, onConfirm, onClose }) {
+  const { t } = useLang()
   return (
     <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl w-[380px] p-5">
@@ -300,27 +343,25 @@ function DeleteModal({ server, isRunning, error, onConfirm, onClose }) {
             <AlertTriangle size={18} className="text-red-400" />
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-[#ecedee]">Удалить сервер?</p>
-            <p className="text-[12px] text-[#55556a] mt-1">
-              «{server.name}» будет удалён вместе со всеми мирами, плагинами и настройками. Это действие необратимо.
-            </p>
+            <p className="text-[14px] font-semibold text-[#ecedee]">{t('delete_server_title')}</p>
+            <p className="text-[12px] text-[#55556a] mt-1">{t('delete_server_desc', { name: server.name })}</p>
           </div>
         </div>
         {isRunning && (
           <div className="flex items-center gap-2 p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-3">
             <AlertTriangle size={12} className="text-yellow-400 shrink-0" />
-            <p className="text-[11px] text-yellow-300">Сначала останови сервер</p>
+            <p className="text-[11px] text-yellow-300">{t('stop_server_first')}</p>
           </div>
         )}
         {error && <p className="text-[11px] text-red-400 mb-3">{error}</p>}
         <div className="flex gap-2">
           <button onClick={onConfirm} disabled={isRunning}
             className="flex-1 py-2 bg-red-500/15 hover:bg-red-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-red-400 text-[12px] font-semibold rounded-lg transition-colors">
-            Удалить навсегда
+            {t('delete_forever')}
           </button>
           <button onClick={onClose}
             className="flex-1 py-2 bg-[#26262f] hover:bg-[#2e2e3a] text-[#8b8b9e] text-[12px] rounded-lg transition-colors">
-            Отмена
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -329,6 +370,7 @@ function DeleteModal({ server, isRunning, error, onConfirm, onClose }) {
 }
 
 function RenameModal({ server, existingServers, isRunning, onRename, onClose }) {
+  const { t } = useLang()
   const [value, setValue] = useState(server.name)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -343,10 +385,10 @@ function RenameModal({ server, existingServers, isRunning, onRename, onClose }) 
   async function handleSubmit(e) {
     e?.preventDefault()
     const newName = sanitized
-    if (!newName) { setError('Введи название'); return }
+    if (!newName) { setError(t('enter_name')); return }
     if (newName === server.name) { onClose(); return }
-    if (!/^[a-zA-Z0-9_-]+$/.test(newName)) { setError('Только буквы, цифры, _ и -'); return }
-    if (isDuplicate) { setError(`Сервер «${newName}» уже существует`); return }
+    if (!/^[a-zA-Z0-9_-]+$/.test(newName)) { setError(t('letters_nums_only')); return }
+    if (isDuplicate) { setError(t('already_exists', { name: newName })); return }
     setSaving(true)
     const err = await onRename(server, newName)
     if (err) { setError(err); setSaving(false) }
@@ -356,11 +398,11 @@ function RenameModal({ server, existingServers, isRunning, onRename, onClose }) 
   return (
     <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl w-[360px] p-5">
-        <p className="text-[14px] font-semibold text-[#ecedee] mb-4">Переименовать сервер</p>
+        <p className="text-[14px] font-semibold text-[#ecedee] mb-4">{t('rename_server')}</p>
         {isRunning && (
           <div className="flex items-center gap-2 p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-3">
             <AlertTriangle size={12} className="text-yellow-400 shrink-0" />
-            <p className="text-[11px] text-yellow-300">Сначала останови сервер</p>
+            <p className="text-[11px] text-yellow-300">{t('stop_server_first')}</p>
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -376,18 +418,18 @@ function RenameModal({ server, existingServers, isRunning, onRename, onClose }) 
             style={{ userSelect: 'text' }}
           />
           {error && <p className="text-[11px] text-red-400">{error}</p>}
-          {!error && isDuplicate && <p className="text-[11px] text-red-400">Сервер «{sanitized}» уже существует</p>}
+          {!error && isDuplicate && <p className="text-[11px] text-red-400">{t('already_exists', { name: sanitized })}</p>}
           {!error && !isDuplicate && value.includes(' ') && (
-            <p className="text-[11px] text-[#55556a]">Пробелы → дефисы: <span className="text-[#8b8b9e]">{sanitized}</span></p>
+            <p className="text-[11px] text-[#55556a]">{t('spaces_to_dashes')} <span className="text-[#8b8b9e]">{sanitized}</span></p>
           )}
           <div className="flex gap-2 mt-1">
             <button type="submit" disabled={isRunning || saving || !value.trim()}
               className="flex-1 py-2 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-40 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors">
-              {saving ? 'Сохранение…' : 'Переименовать'}
+              {saving ? t('saving') : t('rename')}
             </button>
             <button type="button" onClick={onClose}
               className="flex-1 py-2 bg-[#26262f] hover:bg-[#2e2e3a] text-[#8b8b9e] text-[12px] rounded-lg transition-colors">
-              Отмена
+              {t('cancel')}
             </button>
           </div>
         </form>

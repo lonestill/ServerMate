@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Play, Square, Copy, Check, RotateCcw, Zap, Trash2, Users, Clock, Wifi,
   ChevronUp, AlertTriangle, Download, X, Archive, Search,
   Power, Timer, Star, Pencil
 } from '../Icons'
+import { useLang } from '../LangContext'
 
 function classVerToJava(v) {
   const map = { 45:1,46:2,47:3,48:4,49:5,50:6,51:7,52:8,53:9,54:10,55:11,56:12,57:13,58:14,59:15,60:16,61:17,62:18,63:19,64:20,65:21,66:22,67:23,68:24 }
@@ -11,6 +12,7 @@ function classVerToJava(v) {
 }
 
 export default function Console({ server, isRunning, onStarted, onStopped, onSwitchTab, onStats }) {
+  const { t } = useLang()
   const [logs, setLogs] = useState([])
   const [cmd, setCmd] = useState('')
   const [starting, setStarting] = useState(false)
@@ -33,13 +35,11 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
   const [autostart, setAutostart] = useState(server.autostart ?? false)
   const [crashCode, setCrashCode] = useState(null)
   const [ramMb, setRamMb] = useState(null)
-  // Java mismatch
   const [javaAlert, setJavaAlert] = useState(null)
   const [javaFixing, setJavaFixing] = useState(false)
   const [javaFixPct, setJavaFixPct] = useState(0)
   const [javaFixDone, setJavaFixDone] = useState(false)
 
-  // Scheduled restart
   const [schedEnabled, setSchedEnabled] = useState(false)
   const [schedHours, setSchedHours] = useState(6)
   const [schedCountdown, setSchedCountdown] = useState('')
@@ -47,7 +47,6 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
   const schedTimerRef = useRef(null)
   const schedStartRef = useRef(null)
 
-  // Quick commands
   const [quickCmds, setQuickCmds] = useState([])
   const [showQuickEdit, setShowQuickEdit] = useState(false)
 
@@ -56,7 +55,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
   const logRef = useRef(null)
   const restartingRef = useRef(false)
   const autoScrollRef = useRef(true)
-  const logBufRef = useRef('') // rolling buffer for multi-line error detection
+  const logBufRef = useRef('')
 
   useEffect(() => { autoScrollRef.current = autoScroll }, [autoScroll])
 
@@ -66,14 +65,12 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
       if (p?.['server-port']) setPort(p['server-port'])
     })
     setAutostart(server.autostart ?? false)
-    // Load scheduled restart and quick commands from meta
     const meta = server
     setSchedEnabled(meta.scheduledRestart?.enabled ?? false)
     setSchedHours(meta.scheduledRestart?.intervalHours ?? 6)
-    setQuickCmds(meta.quickCommands ?? ['say Привет!', 'weather clear', 'time set day'])
+    setQuickCmds(meta.quickCommands ?? ['say Hello!', 'weather clear', 'time set day'])
   }, [server.name])
 
-  // RAM polling
   useEffect(() => {
     if (!isRunning) { setRamMb(null); return }
     const poll = async () => {
@@ -85,17 +82,14 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
     return () => clearInterval(id)
   }, [isRunning])
 
-  // Tray sync
   useEffect(() => {
     window.api.setRunningServer(isRunning ? server.name : null)
   }, [isRunning])
 
-  // Lift live stats to parent (for OverviewPanel)
   useEffect(() => {
     onStats?.({ players, ramMb, uptime, serverReady })
   }, [players, ramMb, uptime, serverReady])
 
-  // Scheduled restart
   useEffect(() => {
     if (!isRunning || !schedEnabled) {
       clearInterval(schedTimerRef.current)
@@ -117,7 +111,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
       const h = Math.floor(remaining / 3600000)
       const m = Math.floor((remaining % 3600000) / 60000)
       const s = Math.floor((remaining % 60000) / 1000)
-      setSchedCountdown(h > 0 ? `${h}ч ${m}м` : m > 0 ? `${m}м ${s}с` : `${s}с`)
+      setSchedCountdown(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`)
     }, 1000)
     return () => clearInterval(schedTimerRef.current)
   }, [isRunning, schedEnabled, schedHours])
@@ -136,28 +130,26 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
   }
 
   function parseLine(text) {
-    // accumulate rolling buffer for multi-line detection
     logBufRef.current = (logBufRef.current + text).slice(-2000)
     const buf = logBufRef.current
 
     if (/Done \([\d.]+s\)!/.test(text)) {
       setServerReady(true)
       setStartedAt(new Date())
-      window.api.notify('ServerMate', `Сервер ${server.name} готов к игре!`)
+      window.api.notify('ServerMate', `Server ${server.name} is ready!`)
     }
     const joinMatch = text.match(/: (\w{2,16}) joined the game/)
     if (joinMatch) setPlayers(p => [...new Set([...p, joinMatch[1]])])
     const leaveMatch = text.match(/: (\w{2,16}) (?:left the game|lost connection)/)
     if (leaveMatch) setPlayers(p => p.filter(x => x !== leaveMatch[1]))
 
-    // Detect Java version mismatch (may span multiple chunks — check buffer)
     const classVerMatch = buf.match(/class file version (\d+)\.0/)
     if (classVerMatch && /UnsupportedClassVersionError/.test(buf)) {
       const required = classVerToJava(parseInt(classVerMatch[1]))
       const currentMatch = buf.match(/versions up to (\d+)\.0/)
       const current = currentMatch ? classVerToJava(parseInt(currentMatch[1])) : null
       setJavaAlert(prev => prev ? prev : { required, current })
-      logBufRef.current = '' // reset buffer after match
+      logBufRef.current = ''
     }
   }
 
@@ -168,15 +160,15 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
     })
     const unsubStop = window.api.onStopped((data) => {
       const code = data?.code
-      setLogs(prev => [...prev, { type: 'sys', text: `\n[процесс завершён${code != null ? `, код ${code}` : ''}]\n` }])
+      const msg = code != null ? t('process_ended_code', { code }) : t('process_ended')
+      setLogs(prev => [...prev, { type: 'sys', text: `\n${msg}\n` }])
       setPlayers([])
       setServerReady(false)
       setStartedAt(null)
       onStopped()
-      // Crash detection: non-zero and non-null exit code, not a manual restart
       if (code !== 0 && code != null && !restartingRef.current) {
         setCrashCode(code)
-        window.api.notify('ServerMate — Краш', `Сервер ${server.name} упал (код ${code})`)
+        window.api.notify('ServerMate — Crash', `Server ${server.name} crashed (code ${code})`)
       }
       if (restartingRef.current) {
         restartingRef.current = false
@@ -197,7 +189,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
     const tick = () => {
       const s = Math.floor((Date.now() - startedAt.getTime()) / 1000)
       const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
-      setUptime(h > 0 ? `${h}ч ${m}м` : m > 0 ? `${m}м ${sec}с` : `${sec}с`)
+      setUptime(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`)
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -285,7 +277,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
     const res = await window.api.installJava({ major: ver.major, downloadUrl: ver.downloadUrl, name: ver.name, installDir: ver.installDir })
     if (!res.ok) {
       setJavaFixing(false)
-      setLogs(prev => [...prev, { type: 'err', text: `[ServerMate] Ошибка установки Java: ${res.error}\n` }])
+      setLogs(prev => [...prev, { type: 'err', text: `[ServerMate] Java install error: ${res.error}\n` }])
     }
   }
 
@@ -298,7 +290,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
       setBackupDone(res.filename)
       setTimeout(() => setBackupDone(null), 4000)
     } else {
-      setLogs(prev => [...prev, { type: 'err', text: `[ServerMate] Бэкап не удался: ${res.error}\n` }])
+      setLogs(prev => [...prev, { type: 'err', text: `[ServerMate] Backup failed: ${res.error}\n` }])
     }
   }
 
@@ -325,7 +317,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
     : logs
 
   const statusColor = serverReady ? '#1bd96a' : isRunning ? '#f59e0b' : '#2e2e3a'
-  const statusLabel = serverReady ? 'готов' : isRunning ? 'запуск…' : restarting ? 'перезапуск…' : ''
+  const statusLabel = serverReady ? t('status_ready') : isRunning ? t('status_starting') : restarting ? t('status_restarting') : ''
 
   return (
     <div className="flex flex-col h-full">
@@ -338,27 +330,27 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-30 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors"
           >
             <Play size={11} strokeWidth={3} fill="currentColor" />
-            {starting || restarting ? 'Запуск…' : 'Запустить'}
+            {starting || restarting ? t('starting') : t('start')}
           </button>
         ) : (
           <>
             <button onClick={handleStop} disabled={restarting}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] disabled:opacity-50 text-[#ecedee] text-[12px] font-medium rounded-lg transition-colors">
-              <Square size={10} strokeWidth={2.5} /> Стоп
+              <Square size={10} strokeWidth={2.5} /> {t('stop')}
             </button>
             <button onClick={handleRestart} disabled={restarting}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] disabled:opacity-50 text-[#8b8b9e] text-[12px] rounded-lg transition-colors">
               <RotateCcw size={12} className={restarting ? 'animate-spin' : ''} />
-              {restarting ? 'Перезапуск…' : 'Рестарт'}
+              {restarting ? t('restarting') : t('restart')}
             </button>
-            <button onClick={handleKill} title="Принудительно завершить"
+            <button onClick={handleKill} title={t('kill_title')}
               className="flex items-center gap-1 px-2 py-1.5 text-[#55556a] hover:text-red-400 hover:bg-red-500/10 text-[11px] rounded-lg transition-colors">
               <Zap size={11} /> Kill
             </button>
           </>
         )}
 
-        {!server.hasJar && <span className="text-[11px] text-[#55556a]">Сначала установи сервер → «Установка»</span>}
+        {!server.hasJar && <span className="text-[11px] text-[#55556a]">{t('no_jar_hint')}</span>}
 
         {isRunning && (
           <div className="flex items-center gap-1.5">
@@ -368,7 +360,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
         )}
         {uptime && <div className="flex items-center gap-1 text-[11px] text-[#55556a]"><Clock size={11} />{uptime}</div>}
         {ramMb !== null && (
-          <div className="flex items-center gap-1 text-[11px] text-[#55556a]" title="RAM процесса Java">
+          <div className="flex items-center gap-1 text-[11px] text-[#55556a]">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M7 7V5M12 7V5M17 7V5M7 17v2M12 17v2M17 17v2"/></svg>
             {ramMb >= 1024 ? (ramMb / 1024).toFixed(1) + 'G' : ramMb + 'M'}
           </div>
@@ -381,42 +373,39 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
           </div>
         )}
         {localIp && isRunning && serverReady && (
-          <button onClick={copyIp} title="Скопировать адрес для друзей"
+          <button onClick={copyIp} title={t('copy_ip_hint')}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] transition-all ${ipCopied ? 'bg-[#1bd96a20] text-[#1bd96a]' : 'bg-[#1e1e26] text-[#55556a] hover:text-[#8b8b9e] hover:bg-[#26262f]'}`}>
             <Wifi size={11} />
-            {ipCopied ? 'Скопировано!' : `${localIp}:${port}`}
+            {ipCopied ? t('copied_ip') : `${localIp}:${port}`}
           </button>
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          {/* Autostart toggle */}
           <button
             onClick={toggleAutostart}
-            title={autostart ? 'Автозапуск включён' : 'Автозапуск выключен'}
+            title={autostart ? t('autostart_on_title') : t('autostart_off_title')}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all ${autostart ? 'text-[#1bd96a] bg-[#1bd96a15]' : 'text-[#33334a] hover:text-[#55556a] hover:bg-[#1e1e26]'}`}
           >
             <Power size={11} />
-            <span className="hidden sm:block">Автозапуск</span>
+            <span className="hidden sm:block">{t('autostart')}</span>
           </button>
 
-          {/* Backup */}
           <button
             onClick={handleBackup}
             disabled={backing || isRunning}
-            title={isRunning ? 'Останови сервер перед бэкапом' : 'Создать бэкап мира'}
+            title={isRunning ? t('backup_stop_hint') : t('backup_create_hint')}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
               backupDone ? 'text-[#1bd96a] bg-[#1bd96a15]' : 'text-[#55556a] hover:text-[#8b8b9e] hover:bg-[#1e1e26]'
             }`}
           >
             {backing ? <RotateCcw size={11} className="animate-spin" /> : backupDone ? <Check size={11} /> : <Archive size={11} />}
-            <span className="hidden sm:block">{backing ? 'Бэкап…' : backupDone ? 'Готово' : 'Бэкап'}</span>
+            <span className="hidden sm:block">{backing ? t('backing') : backupDone ? t('done_plain') : t('backup')}</span>
           </button>
 
-          {/* Scheduled restart */}
           <div className="relative">
             <button
               onClick={() => setShowSchedMenu(v => !v)}
-              title="Расписание перезапуска"
+              title={t('sched_restart_title')}
               className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all ${schedEnabled ? 'text-[#f59e0b] bg-[#f59e0b15]' : 'text-[#33334a] hover:text-[#55556a] hover:bg-[#1e1e26]'}`}
             >
               <Timer size={11} />
@@ -432,20 +421,18 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
             )}
           </div>
 
-          {/* Quick commands edit */}
           <button
             onClick={() => setShowQuickEdit(v => !v)}
-            title="Быстрые команды"
+            title={t('quick_cmds_title')}
             className={`p-1.5 rounded-lg transition-colors ${showQuickEdit ? 'text-[#1bd96a] bg-[#1bd96a15]' : 'text-[#33334a] hover:text-[#55556a] hover:bg-[#1e1e26]'}`}
           >
             <Star size={11} />
           </button>
 
-          {/* Filter toggle */}
           <button
             onClick={() => { setShowFilter(v => !v); if (showFilter) setFilter('') }}
             className={`p-1.5 rounded-lg transition-colors ${showFilter ? 'text-[#1bd96a] bg-[#1bd96a15]' : 'text-[#55556a] hover:text-[#8b8b9e] hover:bg-[#1e1e26]'}`}
-            title="Фильтр логов"
+            title={t('filter_logs_title')}
           >
             <Search size={11} />
           </button>
@@ -453,7 +440,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
           {!autoScroll && (
             <button onClick={() => { setAutoScroll(true); bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
               className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#f59e0b] bg-[#f59e0b15] rounded-lg hover:bg-[#f59e0b25] transition-colors">
-              <ChevronUp size={11} className="rotate-180" /> Вниз
+              <ChevronUp size={11} className="rotate-180" /> {t('scroll_down')}
             </button>
           )}
           <button onClick={() => setLogs([])} disabled={logs.length === 0}
@@ -463,12 +450,11 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
           <button onClick={copyLogs} disabled={logs.length === 0}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-[#55556a] hover:text-[#8b8b9e] disabled:opacity-30 rounded-lg hover:bg-[#1e1e26] transition-colors">
             {copied ? <Check size={11} /> : <Copy size={11} />}
-            <span className="hidden sm:block">{copied ? 'Скопировано' : 'Копировать'}</span>
+            <span className="hidden sm:block">{copied ? t('copied') : t('copy_logs')}</span>
           </button>
         </div>
       </div>
 
-      {/* Quick commands bar */}
       {showQuickEdit && (
         <QuickCommandsBar
           cmds={quickCmds}
@@ -479,7 +465,6 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
         />
       )}
 
-      {/* Filter bar */}
       {showFilter && (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#111116] border-b border-[#2a2a35] shrink-0">
           <Search size={11} className="text-[#55556a] shrink-0" />
@@ -488,7 +473,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
             type="text"
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            placeholder="Фильтр логов…"
+            placeholder={t('filter_placeholder')}
             className="flex-1 bg-transparent text-[12px] text-[#ecedee] placeholder-[#33334a] outline-none console-text"
             style={{ userSelect: 'text' }}
           />
@@ -501,7 +486,6 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
         </div>
       )}
 
-      {/* Java mismatch banner */}
       {javaAlert && (
         <JavaFixBanner
           alert={javaAlert}
@@ -515,22 +499,20 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
         />
       )}
 
-      {/* Crash banner */}
       {crashCode !== null && (
         <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-red-500/5 border-b border-red-500/20">
           <AlertTriangle size={14} className="text-red-400 shrink-0" />
-          <p className="flex-1 text-[12px] text-red-300">Сервер упал с кодом {crashCode} — проверь логи выше</p>
+          <p className="flex-1 text-[12px] text-red-300">{t('crash_banner', { code: crashCode })}</p>
           <button
             onClick={() => { setCrashCode(null); handleStart() }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#26262f] hover:bg-[#2e2e3a] text-[11px] text-[#ecedee] rounded-lg transition-colors"
           >
-            <RotateCcw size={11} /> Перезапустить
+            <RotateCcw size={11} /> {t('crash_restart')}
           </button>
           <button onClick={() => setCrashCode(null)} className="text-[#33334a] hover:text-[#55556a]"><X size={13} /></button>
         </div>
       )}
 
-      {/* Log area */}
       <div
         ref={logRef}
         onScroll={handleScroll}
@@ -538,16 +520,15 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
         onClick={() => isRunning && inputRef.current?.focus()}
       >
         {logs.length === 0
-          ? <span className="text-[#2a2a35]">Логи появятся после запуска…</span>
+          ? <span className="text-[#2a2a35]">{t('logs_empty')}</span>
           : filteredLogs.map((l, i) => <LogLine key={i} log={l} filter={filter} />)
         }
         {filter && filteredLogs.length === 0 && (
-          <span className="text-[#33334a]">Ничего не найдено по «{filter}»</span>
+          <span className="text-[#33334a]">{t('nothing_found', { q: filter })}</span>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Command input */}
       <form onSubmit={handleCommand} className="flex items-center border-t border-[#2a2a35] bg-[#111116]">
         <span className="pl-4 pr-2 text-[#33334a] select-none text-[16px] console-text">›</span>
         <input
@@ -557,7 +538,7 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
           onChange={(e) => { setCmd(e.target.value); setHistoryIdx(-1) }}
           onKeyDown={handleKeyDown}
           disabled={!isRunning}
-          placeholder={isRunning ? 'Команда… (↑↓ история)' : 'Сервер не запущен'}
+          placeholder={isRunning ? t('cmd_placeholder') : t('server_offline')}
           className="flex-1 bg-transparent py-2.5 text-[12px] text-[#ecedee] placeholder-[#2a2a35] outline-none disabled:opacity-40 console-text"
           style={{ userSelect: 'text' }}
         />
@@ -568,15 +549,16 @@ export default function Console({ server, isRunning, onStarted, onStopped, onSwi
 }
 
 function JavaFixBanner({ alert, fixing, fixPct, done, onFix, onOpenJavaTab, onDismiss, onRestartAfterFix }) {
+  const { t } = useLang()
   return (
     <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-[#f59e0b0d] border-b border-[#f59e0b25]">
       <AlertTriangle size={14} className="text-[#f59e0b] shrink-0" />
       <div className="flex-1 min-w-0">
         {done ? (
-          <p className="text-[12px] text-[#1bd96a]">Java {alert.required} установлена — можно запустить сервер</p>
+          <p className="text-[12px] text-[#1bd96a]">{t('java_fix_done', { required: alert.required })}</p>
         ) : (
           <p className="text-[12px] text-[#f59e0b]">
-            Требуется Java {alert.required}+{alert.current ? `, установлена Java ${alert.current}` : ''}
+            {t('java_required_msg', { required: alert.required })}{alert.current ? t('java_also_installed', { current: alert.current }) : ''}
           </p>
         )}
         {fixing && (
@@ -584,7 +566,7 @@ function JavaFixBanner({ alert, fixing, fixPct, done, onFix, onOpenJavaTab, onDi
             <div className="flex-1 max-w-[200px] h-1 bg-[#26262f] rounded-full overflow-hidden">
               <div className="h-full bg-[#f59e0b] rounded-full transition-all duration-300" style={{ width: `${fixPct}%` }} />
             </div>
-            <span className="text-[10px] text-[#55556a]">{fixPct < 100 ? `Скачивание Java ${alert.required}… ${fixPct}%` : 'Распаковка…'}</span>
+            <span className="text-[10px] text-[#55556a]">{fixPct < 100 ? t('java_downloading', { required: alert.required, pct: fixPct }) : t('unpacking')}</span>
           </div>
         )}
       </div>
@@ -592,16 +574,16 @@ function JavaFixBanner({ alert, fixing, fixPct, done, onFix, onOpenJavaTab, onDi
         {done ? (
           <button onClick={onRestartAfterFix}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors">
-            <Play size={10} strokeWidth={3} fill="currentColor" /> Запустить снова
+            <Play size={10} strokeWidth={3} fill="currentColor" /> {t('start_again')}
           </button>
         ) : !fixing ? (
           <>
             <button onClick={onFix}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-black text-[11px] font-semibold rounded-lg transition-colors">
-              <Download size={11} /> Установить Java {alert.required}
+              <Download size={11} /> {t('install_java_btn', { major: alert.required })}
             </button>
             <button onClick={onOpenJavaTab} className="px-2.5 py-1.5 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors">
-              Настройки Java
+              {t('java_settings_link')}
             </button>
           </>
         ) : null}
@@ -612,6 +594,7 @@ function JavaFixBanner({ alert, fixing, fixPct, done, onFix, onOpenJavaTab, onDi
 }
 
 function SchedMenu({ enabled, hours, onSave, onClose }) {
+  const { t } = useLang()
   const [en, setEn] = useState(enabled)
   const [h, setH] = useState(hours)
   const OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24]
@@ -626,7 +609,7 @@ function SchedMenu({ enabled, hours, onSave, onClose }) {
 
   return (
     <div data-sched-menu className="absolute right-0 top-8 z-50 w-52 bg-[#1e1e26] border border-[#2a2a35] rounded-xl shadow-2xl p-3">
-      <p className="text-[11px] font-semibold text-[#ecedee] mb-2">Автоперезапуск</p>
+      <p className="text-[11px] font-semibold text-[#ecedee] mb-2">{t('sched_title')}</p>
       <div className="flex items-center gap-2 mb-3">
         <button
           onClick={() => setEn(v => !v)}
@@ -634,30 +617,30 @@ function SchedMenu({ enabled, hours, onSave, onClose }) {
         >
           <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${en ? 'left-4' : 'left-0.5'}`} />
         </button>
-        <span className="text-[11px] text-[#8b8b9e]">{en ? 'Включён' : 'Выключен'}</span>
+        <span className="text-[11px] text-[#8b8b9e]">{en ? t('sched_on') : t('sched_off')}</span>
       </div>
-      <p className="text-[10px] text-[#33334a] mb-1.5">Интервал (часов)</p>
+      <p className="text-[10px] text-[#33334a] mb-1.5">{t('sched_interval')}</p>
       <div className="flex flex-wrap gap-1 mb-3">
         {OPTIONS.map(o => (
           <button key={o} onClick={() => setH(o)}
             className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${h === o ? 'bg-[#1bd96a20] text-[#1bd96a] border border-[#1bd96a40]' : 'bg-[#26262f] text-[#55556a] hover:text-[#8b8b9e]'}`}
-          >{o}ч</button>
+          >{o}h</button>
         ))}
       </div>
       <button
         onClick={() => { onSave(en, h); onClose() }}
         className="w-full py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors"
       >
-        Сохранить
+        {t('save')}
       </button>
     </div>
   )
 }
 
 function QuickCommandsBar({ cmds, isRunning, onSend, onSave, onClose }) {
+  const { t } = useLang()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(cmds.join('\n'))
-  const [newCmd, setNewCmd] = useState('')
 
   function sendAndClose(c) {
     if (isRunning) onSend(c)
@@ -673,7 +656,7 @@ function QuickCommandsBar({ cmds, isRunning, onSend, onSave, onClose }) {
     <div className="shrink-0 border-b border-[#2a2a35] bg-[#111116] px-3 py-2">
       {!editing ? (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] text-[#33334a] mr-1">Быстрые:</span>
+          <span className="text-[10px] text-[#33334a] mr-1">{t('quick_cmds_label')}</span>
           {cmds.map((c, i) => (
             <button
               key={i}
@@ -693,7 +676,7 @@ function QuickCommandsBar({ cmds, isRunning, onSend, onSave, onClose }) {
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] text-[#55556a]">По одной команде на строку</p>
+          <p className="text-[10px] text-[#55556a]">{t('one_per_line')}</p>
           <textarea
             value={draft}
             onChange={e => setDraft(e.target.value)}
@@ -702,8 +685,8 @@ function QuickCommandsBar({ cmds, isRunning, onSend, onSave, onClose }) {
             rows={3}
           />
           <div className="flex gap-2">
-            <button onClick={saveDraft} className="px-3 py-1 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors">Сохранить</button>
-            <button onClick={() => setEditing(false)} className="px-3 py-1 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors">Отмена</button>
+            <button onClick={saveDraft} className="px-3 py-1 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors">{t('save')}</button>
+            <button onClick={() => setEditing(false)} className="px-3 py-1 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors">{t('cancel')}</button>
           </div>
         </div>
       )}

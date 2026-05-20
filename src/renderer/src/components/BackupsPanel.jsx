@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Archive, FolderOpen, Trash2, RefreshCw, HardDrive } from '../Icons'
+import { useLang } from '../LangContext'
 
 function fmtSize(bytes) {
   if (!bytes) return '0 B'
@@ -11,10 +12,11 @@ function fmtSize(bytes) {
 
 function fmtDate(iso) {
   if (!iso) return ''
-  return new Date(iso).toLocaleString('ru', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function BackupsPanel({ server, isRunning }) {
+  const { t } = useLang()
   const [backups, setBackups] = useState([])
   const [loading, setLoading] = useState(false)
   const [backing, setBacking] = useState(false)
@@ -51,12 +53,13 @@ export default function BackupsPanel({ server, isRunning }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="p-5 max-w-lg">
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-[14px] font-semibold text-[#ecedee]">Бэкапы мира</h2>
+            <h2 className="text-[14px] font-semibold text-[#ecedee]">{t('backups_title')}</h2>
             <p className="text-[11px] text-[#55556a] mt-0.5">
-              {backups.length > 0 ? `${backups.length} бэкап${backups.length === 1 ? '' : 'а'} · ${fmtSize(totalSize)}` : 'Бэкапы не созданы'}
+              {backups.length > 0
+                ? t(backups.length === 1 ? 'backups_count' : 'backups_count_many', { n: backups.length, size: fmtSize(totalSize) })
+                : t('no_backups_created')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -64,23 +67,23 @@ export default function BackupsPanel({ server, isRunning }) {
               onClick={() => window.api.openBackupsFolder(server.name)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] text-[11px] text-[#8b8b9e] rounded-lg transition-all"
             >
-              <FolderOpen size={12} /> Папка
+              <FolderOpen size={12} /> {t('folder_btn')}
             </button>
             <button
               onClick={handleBackup}
               disabled={backing || isRunning}
-              title={isRunning ? 'Останови сервер перед бэкапом' : ''}
+              title={isRunning ? t('backup_stop_hint') : ''}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-40 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors"
             >
               {backing ? <RefreshCw size={12} className="animate-spin" /> : <Archive size={12} />}
-              {backing ? 'Создание…' : backupDone ? 'Готово!' : 'Создать бэкап'}
+              {backing ? t('creating_backup') : backupDone ? t('done') : t('create_backup_btn')}
             </button>
           </div>
         </div>
 
         {isRunning && (
           <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-            <p className="text-[11px] text-yellow-300">Останови сервер перед созданием бэкапа, чтобы не повредить мир</p>
+            <p className="text-[11px] text-yellow-300">{t('stop_before_backup_hint')}</p>
           </div>
         )}
 
@@ -92,7 +95,7 @@ export default function BackupsPanel({ server, isRunning }) {
 
         {loading && (
           <div className="flex items-center gap-2 text-[12px] text-[#55556a] py-4">
-            <RefreshCw size={13} className="animate-spin" /> Загрузка…
+            <RefreshCw size={13} className="animate-spin" /> {t('loading')}
           </div>
         )}
 
@@ -101,8 +104,8 @@ export default function BackupsPanel({ server, isRunning }) {
             <div className="w-12 h-12 rounded-xl bg-[#1e1e26] border border-[#2a2a35] flex items-center justify-center">
               <Archive size={20} className="text-[#2a2a35]" />
             </div>
-            <p className="text-[12px] text-[#55556a]">Бэкапов пока нет</p>
-            <p className="text-[11px] text-[#33334a]">Нажми «Создать бэкап» чтобы сохранить мир</p>
+            <p className="text-[12px] text-[#55556a]">{t('no_backups_yet')}</p>
+            <p className="text-[11px] text-[#33334a]">{t('click_to_create_backup')}</p>
           </div>
         )}
 
@@ -125,7 +128,7 @@ export default function BackupsPanel({ server, isRunning }) {
 
               {deleteTarget === backup.filename ? (
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[11px] text-[#8b8b9e]">Удалить?</span>
+                  <span className="text-[11px] text-[#8b8b9e]">{t('delete_q')}</span>
                   <button
                     onClick={async () => {
                       await window.api.deleteBackup(server.name, backup.filename)
@@ -133,8 +136,8 @@ export default function BackupsPanel({ server, isRunning }) {
                       load()
                     }}
                     className="px-2 py-1 text-[11px] text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg"
-                  >Да</button>
-                  <button onClick={() => setDeleteTarget(null)} className="px-2 py-1 text-[11px] text-[#55556a] rounded-lg">Нет</button>
+                  >{t('yes')}</button>
+                  <button onClick={() => setDeleteTarget(null)} className="px-2 py-1 text-[11px] text-[#55556a] rounded-lg">{t('no')}</button>
                 </div>
               ) : (
                 <button

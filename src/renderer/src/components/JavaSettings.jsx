@@ -1,7 +1,9 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { RefreshCw, Check, AlertTriangle, Download, ChevronDown, ChevronUp } from '../Icons'
+import { useLang } from '../LangContext'
 
 export default function JavaSettings({ server }) {
+  const { t } = useLang()
   const [javas, setJavas] = useState([])
   const [scanning, setScanning] = useState(false)
   const [args, setArgs] = useState('-Xmx2G -Xms512M')
@@ -22,7 +24,8 @@ export default function JavaSettings({ server }) {
 
     if (server.hasJar && server.jarName) {
       const dir = await window.api.getServerDir(server.name)
-      const req = await window.api.detectRequiredJava(dir + '\\' + server.jarName)
+      const sep = dir.includes('\\') ? '\\' : '/'
+      const req = await window.api.detectRequiredJava(dir + sep + server.jarName)
       setRequiredJava(req)
       if (req && !list.some(j => j.major >= req)) setShowInstaller(true)
     }
@@ -56,7 +59,6 @@ export default function JavaSettings({ server }) {
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="p-6 max-w-lg flex flex-col gap-5">
 
-        {/* Java status */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[14px] font-semibold text-[#ecedee]">Java</h2>
@@ -66,52 +68,49 @@ export default function JavaSettings({ server }) {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] text-[11px] text-[#8b8b9e] rounded-lg transition-all disabled:opacity-50"
             >
               <RefreshCw size={12} className={scanning ? 'animate-spin' : ''} />
-              {scanning ? 'Сканирую…' : 'Найти Java'}
+              {scanning ? t('scanning') : t('find_java')}
             </button>
           </div>
 
           {javas.length === 0 ? (
-            /* No Java at all */
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/25 mb-3">
               <AlertTriangle size={14} className="text-red-400 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-[12px] font-medium text-red-300">Java не найдена — сервер не запустится</p>
-                <p className="text-[11px] text-[#55556a] mt-0.5">Установи Java чтобы продолжить</p>
+                <p className="text-[12px] font-medium text-red-300">{t('no_java_found')}</p>
+                <p className="text-[11px] text-[#55556a] mt-0.5">{t('install_java_hint')}</p>
               </div>
               <button
                 onClick={() => setShowInstaller(v => !v)}
                 className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors"
               >
                 <Download size={12} strokeWidth={2.5} />
-                Установить
+                {t('install')}
               </button>
             </div>
           ) : !hasCompatible && requiredJava ? (
-            /* Java exists but wrong version */
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/25 mb-3">
               <AlertTriangle size={14} className="text-red-400 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-[12px] font-medium text-red-300">Java {requiredJava}+ не найдена — сервер не запустится</p>
-                <p className="text-[11px] text-[#55556a] mt-0.5">Установлена Java {javas[0]?.major}, нужна {requiredJava}+</p>
+                <p className="text-[12px] font-medium text-red-300">{t('wrong_java', { required: requiredJava })}</p>
+                <p className="text-[11px] text-[#55556a] mt-0.5">{t('java_installed_need', { current: javas[0]?.major, required: requiredJava })}</p>
               </div>
               <button
                 onClick={() => setShowInstaller(v => !v)}
                 className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-[#1bd96a] hover:bg-[#17c05d] text-black text-[11px] font-semibold rounded-lg transition-colors"
               >
                 <Download size={12} strokeWidth={2.5} />
-                Установить
+                {t('install')}
               </button>
             </div>
           ) : (
-            /* All good */
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1bd96a10] border border-[#1bd96a25] mb-3">
               <Check size={14} className="text-[#1bd96a] shrink-0" strokeWidth={3} />
               <div className="flex-1">
                 <p className="text-[12px] font-medium text-[#1bd96a]">
-                  Java {bestJava?.major} выбрана автоматически
+                  {t('java_auto_selected', { major: bestJava?.major })}
                 </p>
                 {requiredJava && (
-                  <p className="text-[11px] text-[#55556a] mt-0.5">Для этого сервера нужна Java {requiredJava}+</p>
+                  <p className="text-[11px] text-[#55556a] mt-0.5">{t('java_needed', { required: requiredJava })}</p>
                 )}
               </div>
               <button
@@ -119,7 +118,7 @@ export default function JavaSettings({ server }) {
                 className="shrink-0 flex items-center gap-1 text-[11px] text-[#55556a] hover:text-[#8b8b9e] transition-colors"
               >
                 {showInstaller ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                {showInstaller ? 'Скрыть' : 'Ещё версии'}
+                {showInstaller ? t('hide_installer') : t('more_versions')}
               </button>
             </div>
           )}
@@ -132,9 +131,8 @@ export default function JavaSettings({ server }) {
           />
         )}
 
-        {/* RAM quick picker */}
         <div>
-          <label className="block text-[11px] font-medium text-[#8b8b9e] mb-2">Максимум RAM</label>
+          <label className="block text-[11px] font-medium text-[#8b8b9e] mb-2">{t('max_ram')}</label>
           <div className="flex gap-1.5 flex-wrap">
             {['512M', '1G', '2G', '4G', '6G', '8G', '12G', '16G'].map(val => {
               const current = args.match(/-Xmx(\S+)/i)?.[1] ?? ''
@@ -160,13 +158,12 @@ export default function JavaSettings({ server }) {
           </div>
         </div>
 
-        {/* JVM args — auto-save */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[11px] font-medium text-[#8b8b9e]">JVM аргументы</label>
+            <label className="text-[11px] font-medium text-[#8b8b9e]">{t('jvm_args_label')}</label>
             {savedArgs && (
               <span className="flex items-center gap-1 text-[10px] text-[#1bd96a]">
-                <Check size={9} strokeWidth={3} /> сохранено
+                <Check size={9} strokeWidth={3} /> {t('saved_indicator')}
               </span>
             )}
           </div>
@@ -177,7 +174,7 @@ export default function JavaSettings({ server }) {
             className="w-full bg-[#1e1e26] border border-[#2a2a35] focus:border-[#1bd96a] rounded-lg px-3 py-2 text-[12px] text-[#ecedee] outline-none transition-colors font-mono"
             style={{ userSelect: 'text' }}
           />
-          <p className="text-[11px] text-[#33334a] mt-1">Сохраняется автоматически</p>
+          <p className="text-[11px] text-[#33334a] mt-1">{t('auto_save_hint')}</p>
         </div>
 
       </div>
@@ -186,6 +183,7 @@ export default function JavaSettings({ server }) {
 }
 
 function JavaInstaller({ onInstalled, requiredMajor }) {
+  const { t } = useLang()
   const [versions, setVersions] = useState([])
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState(null)
@@ -219,11 +217,11 @@ function JavaInstaller({ onInstalled, requiredMajor }) {
 
   return (
     <div className="p-4 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
-      <p className="text-[12px] font-semibold text-[#ecedee] mb-1">Установить Java (Adoptium JDK)</p>
-      <p className="text-[11px] text-[#55556a] mb-3">Права администратора не нужны</p>
+      <p className="text-[12px] font-semibold text-[#ecedee] mb-1">{t('java_installer_title')}</p>
+      <p className="text-[11px] text-[#55556a] mb-3">{t('no_admin_needed')}</p>
 
-      {loading && <p className="text-[11px] text-[#55556a]">Загрузка…</p>}
-      {!loading && versions.length === 0 && <p className="text-[11px] text-red-400">Не удалось загрузить — проверь интернет</p>}
+      {loading && <p className="text-[11px] text-[#55556a]">{t('loading')}</p>}
+      {!loading && versions.length === 0 && <p className="text-[11px] text-red-400">{t('failed_to_load')}</p>}
 
       <div className="flex flex-col gap-2">
         {versions.map(ver => {
@@ -236,12 +234,12 @@ function JavaInstaller({ onInstalled, requiredMajor }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-[12px] font-medium text-[#ecedee]">Java {ver.major}</p>
                   <span className="text-[10px] text-[#55556a] bg-[#26262f] px-1.5 py-0.5 rounded">{MC_NEEDS[ver.major] ?? ''}</span>
-                  {isRecommended && <span className="text-[10px] text-[#1bd96a] bg-[#1bd96a15] px-1.5 py-0.5 rounded font-medium">рекомендуется</span>}
+                  {isRecommended && <span className="text-[10px] text-[#1bd96a] bg-[#1bd96a15] px-1.5 py-0.5 rounded font-medium">{t('recommended_badge')}</span>}
                 </div>
                 {isInstalling && phase !== 'done' && (
                   <div className="mt-2">
                     <div className="flex justify-between text-[10px] text-[#55556a] mb-1">
-                      <span>{phase === 'download' ? 'Скачивание…' : 'Установка…'}</span>
+                      <span>{phase === 'download' ? t('downloading_progress') : t('installing_progress')}</span>
                       <span>{phase === 'download' ? pct + '%' : ''}</span>
                     </div>
                     <div className="h-1 bg-[#26262f] rounded-full overflow-hidden">
@@ -258,7 +256,7 @@ function JavaInstaller({ onInstalled, requiredMajor }) {
                   isDone ? 'bg-[#1bd96a20] text-[#1bd96a]' : 'bg-[#1bd96a] hover:bg-[#17c05d] text-black'
                 }`}
               >
-                {isDone ? <><Check size={11} strokeWidth={3} /> Готово</> : <><Download size={11} strokeWidth={2.5} /> Установить</>}
+                {isDone ? <><Check size={11} strokeWidth={3} /> {t('done_plain')}</> : <><Download size={11} strokeWidth={2.5} /> {t('install')}</>}
               </button>
             </div>
           )

@@ -1,16 +1,18 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Play, Square, RotateCcw, Zap, Copy, Check, Users, Clock,
   Globe, AlertTriangle, RefreshCw, PackageOpen
 } from '../Icons'
+import { useLang } from '../LangContext'
 
 function fmt(bytes) {
-  if (bytes > 1e9) return (bytes / 1e9).toFixed(1) + ' ГБ'
-  if (bytes > 1e6) return (bytes / 1e6).toFixed(1) + ' МБ'
-  return (bytes / 1e3).toFixed(0) + ' КБ'
+  if (bytes > 1e9) return (bytes / 1e9).toFixed(1) + ' GB'
+  if (bytes > 1e6) return (bytes / 1e6).toFixed(1) + ' MB'
+  return (bytes / 1e3).toFixed(0) + ' KB'
 }
 
 export default function OverviewPanel({ server, isRunning, liveStats, onStarted, onSwitchTab }) {
+  const { t } = useLang()
   const { players = [], ramMb = null, uptime = '', serverReady = false } = liveStats ?? {}
   const [localIp, setLocalIp] = useState('')
   const [port, setPort] = useState('25565')
@@ -39,7 +41,6 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
     }
   }, [server.name])
 
-  // Reset local start/restart state when isRunning changes
   useEffect(() => {
     if (!isRunning) {
       setStarting(false)
@@ -97,7 +98,7 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
               <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: statusColor, boxShadow: isRunning ? `0 0 8px ${statusColor}80` : 'none' }} />
               <span className="text-[14px] font-semibold text-[#ecedee] truncate">{server.name}</span>
               <span className="text-[11px]" style={{ color: statusColor }}>
-                {serverReady ? 'готов' : isRunning ? 'запуск…' : 'остановлен'}
+                {serverReady ? t('status_ready_ov') : isRunning ? t('status_starting_ov') : t('status_stopped_ov')}
               </span>
             </div>
             <div className="flex items-center gap-3 text-[11px] text-[#55556a] flex-wrap">
@@ -110,7 +111,7 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
                   {ramMb >= 1024 ? (ramMb/1024).toFixed(1)+'G' : ramMb+'M'}
                 </span>
               )}
-              {players.length > 0 && <span className="flex items-center gap-1"><Users size={10} />{players.length} онлайн</span>}
+              {players.length > 0 && <span className="flex items-center gap-1"><Users size={10} />{t('players_online_badge', { n: players.length })}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -121,16 +122,16 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#1bd96a] hover:bg-[#17c05d] disabled:opacity-40 disabled:cursor-not-allowed text-black text-[12px] font-semibold rounded-lg transition-colors"
               >
                 <Play size={12} strokeWidth={3} fill="currentColor" />
-                {starting ? 'Запуск…' : 'Запустить'}
+                {starting ? t('starting') : t('start')}
               </button>
             ) : (
               <>
                 <button onClick={handleStop} disabled={restarting} className="flex items-center gap-1.5 px-3 py-2 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] disabled:opacity-50 text-[#ecedee] text-[12px] rounded-lg transition-colors">
-                  <Square size={10} /> Стоп
+                  <Square size={10} /> {t('stop')}
                 </button>
                 <button onClick={handleRestart} disabled={restarting} className="flex items-center gap-1.5 px-3 py-2 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] disabled:opacity-50 text-[#8b8b9e] text-[12px] rounded-lg transition-colors">
                   <RotateCcw size={11} className={restarting ? 'animate-spin' : ''} />
-                  {restarting ? '…' : 'Рестарт'}
+                  {restarting ? '…' : t('restart')}
                 </button>
                 <button onClick={handleKill} title="Kill" className="p-2 text-[#55556a] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                   <Zap size={12} />
@@ -145,70 +146,67 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
           <div className="flex items-center gap-3 p-3 bg-[#f59e0b0d] border border-[#f59e0b25] rounded-xl">
             <RefreshCw size={13} className="text-[#f59e0b] shrink-0" />
             <div className="flex-1">
-              <p className="text-[12px] font-medium text-[#f59e0b]">Доступно обновление Paper</p>
-              <p className="text-[11px] text-[#55556a]">Билд #{updateInfo.latest} для MC {updateInfo.mcVersion} (у вас #{updateInfo.current})</p>
+              <p className="text-[12px] font-medium text-[#f59e0b]">{t('update_paper')}</p>
+              <p className="text-[11px] text-[#55556a]">{t('update_build_info', { latest: updateInfo.latest, mcVersion: updateInfo.mcVersion, current: updateInfo.current })}</p>
             </div>
             <button
               onClick={() => onSwitchTab?.('install')}
               className="shrink-0 px-3 py-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-black text-[11px] font-semibold rounded-lg transition-colors"
             >
-              Обновить
+              {t('update_btn')}
             </button>
           </div>
         )}
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
-          {/* Address */}
           <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
-            <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">Адрес</p>
+            <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">{t('address')}</p>
             {localIp ? (
               <button
                 onClick={copyIp}
                 className={`flex items-center gap-1.5 text-[12px] font-mono transition-colors ${ipCopied ? 'text-[#1bd96a]' : 'text-[#ecedee] hover:text-[#1bd96a]'}`}
               >
                 {ipCopied ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
-                {ipCopied ? 'Скопировано' : `${localIp}:${port}`}
+                {ipCopied ? t('copied') : `${localIp}:${port}`}
               </button>
             ) : (
               <span className="text-[12px] text-[#33334a]">—</span>
             )}
-            <p className="text-[10px] text-[#33334a] mt-1">для подключения в локальной сети</p>
+            <p className="text-[10px] text-[#33334a] mt-1">{t('local_net_hint')}</p>
           </div>
 
-          {/* Players */}
           <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
-            <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">Игроки онлайн</p>
+            <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">{t('players_online_title')}</p>
             <p className="text-[22px] font-bold text-[#ecedee] leading-none">{players.length}</p>
             {players.length > 0 && (
               <p className="text-[10px] text-[#55556a] mt-1 truncate">{players.slice(0, 3).join(', ')}{players.length > 3 ? ` +${players.length-3}` : ''}</p>
             )}
-            {players.length === 0 && <p className="text-[10px] text-[#33334a] mt-1">{isRunning ? 'нет игроков' : 'сервер не запущен'}</p>}
+            {players.length === 0 && <p className="text-[10px] text-[#33334a] mt-1">{isRunning ? t('no_players') : t('server_offline_ov')}</p>}
           </div>
 
-          {/* RAM */}
           <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
             <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">RAM</p>
             {ramMb !== null ? (
               <p className="text-[22px] font-bold text-[#ecedee] leading-none">
                 {ramMb >= 1024 ? (ramMb/1024).toFixed(1) : ramMb}
-                <span className="text-[13px] font-normal text-[#55556a] ml-1">{ramMb >= 1024 ? 'ГБ' : 'МБ'}</span>
+                <span className="text-[13px] font-normal text-[#55556a] ml-1">{ramMb >= 1024 ? 'GB' : 'MB'}</span>
               </p>
             ) : (
               <p className="text-[22px] font-bold text-[#33334a] leading-none">—</p>
             )}
-            <p className="text-[10px] text-[#33334a] mt-1">использует Java процесс</p>
+            <p className="text-[10px] text-[#33334a] mt-1">{t('ram_hint')}</p>
           </div>
         </div>
 
         {/* Worlds */}
         <div className="p-4 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider">Миры</p>
-            <button onClick={() => onSwitchTab?.('worlds')} className="text-[10px] text-[#33334a] hover:text-[#55556a] transition-colors">Управление →</button>
+            <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider">{t('worlds_section')}</p>
+            <button onClick={() => onSwitchTab?.('worlds')} className="text-[10px] text-[#33334a] hover:text-[#55556a] transition-colors">{t('manage')}</button>
           </div>
           {worlds.length === 0 ? (
-            <p className="text-[12px] text-[#33334a]">Миры не найдены — запусти сервер</p>
+            <p className="text-[12px] text-[#33334a]">{t('no_worlds_run')}</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {worlds.map(w => (
@@ -219,7 +217,7 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
               ))}
               {worlds.length > 0 && (
                 <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#2a2a35]">
-                  <span className="text-[11px] text-[#33334a]">Итого</span>
+                  <span className="text-[11px] text-[#33334a]">{t('total')}</span>
                   <span className="text-[11px] text-[#55556a]">{fmt(totalWorldSize)}</span>
                 </div>
               )}
@@ -231,34 +229,34 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
         <div className="grid grid-cols-2 gap-3">
           <div className="p-4 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider">Последний бэкап</p>
-              <button onClick={() => onSwitchTab?.('backups')} className="text-[10px] text-[#33334a] hover:text-[#55556a] transition-colors">Все →</button>
+              <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider">{t('last_backup')}</p>
+              <button onClick={() => onSwitchTab?.('backups')} className="text-[10px] text-[#33334a] hover:text-[#55556a] transition-colors">{t('all_link')}</button>
             </div>
             {lastBackup ? (
               <>
                 <p className="text-[12px] text-[#ecedee] truncate">{lastBackup.filename}</p>
                 <p className="text-[10px] text-[#33334a] mt-0.5">
-                  {new Date(lastBackup.createdAt).toLocaleString('ru', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
+                  {new Date(lastBackup.createdAt).toLocaleString(undefined, { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
                   {' · '}{fmt(lastBackup.size)}
                 </p>
               </>
             ) : (
-              <p className="text-[12px] text-[#33334a]">Нет бэкапов</p>
+              <p className="text-[12px] text-[#33334a]">{t('no_backups_ov')}</p>
             )}
           </div>
 
           <div className="p-4 bg-[#1e1e26] border border-[#2a2a35] rounded-xl flex flex-col">
-            <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider mb-2">Экспорт</p>
-            <p className="text-[11px] text-[#33334a] mb-3 flex-1">Сохранить всю папку сервера как .zip</p>
+            <p className="text-[11px] font-semibold text-[#55556a] uppercase tracking-wider mb-2">{t('export_title')}</p>
+            <p className="text-[11px] text-[#33334a] mb-3 flex-1">{t('export_desc')}</p>
             <button
               onClick={handleExport}
               disabled={exporting || isRunning}
-              title={isRunning ? 'Останови сервер перед экспортом' : ''}
+              title={isRunning ? t('stop_before_export') : ''}
               className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-fit ${
                 exportDone ? 'bg-[#1bd96a20] text-[#1bd96a]' : 'bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] text-[#8b8b9e]'
               }`}
             >
-              {exportDone ? <><Check size={11} strokeWidth={3} /> Готово</> : exporting ? <><RotateCcw size={11} className="animate-spin" /> Архивирую…</> : <><PackageOpen size={11} /> Экспортировать</>}
+              {exportDone ? <><Check size={11} strokeWidth={3} /> {t('done_plain')}</> : exporting ? <><RotateCcw size={11} className="animate-spin" /> {t('exporting')}</> : <><PackageOpen size={11} /> {t('export_btn')}</>}
             </button>
           </div>
         </div>

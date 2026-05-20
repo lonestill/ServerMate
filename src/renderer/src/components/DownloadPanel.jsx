@@ -1,58 +1,35 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Download, Check, AlertTriangle, X, RefreshCw } from '../Icons'
 import VersionPicker from './VersionPicker'
+import { useLang } from '../LangContext'
 
-const TYPES = {
-  paper: 'Paper — быстрый, поддерживает плагины Bukkit/Spigot',
-  vanilla: 'Vanilla — официальный сервер Mojang',
-  fabric: 'Fabric — для модов',
-}
-
-// Warnings shown depending on what's being overwritten
-function getWarnings(type, previousType) {
+function getWarnings(type, previousType, t) {
   const warnings = []
 
   if (previousType && previousType !== type) {
     warnings.push({
       level: 'error',
-      text: `Ты меняешь ядро с ${previousType} на ${type}. Плагины/моды от ${previousType} не будут работать с ${type} — их нужно удалить вручную.`,
+      text: t('warn_core_change', { from: previousType, to: type }),
     })
   }
 
   if (type === 'fabric' || previousType === 'fabric') {
-    warnings.push({
-      level: 'warn',
-      text: 'Fabric моды несовместимы с Paper/Vanilla плагинами и наоборот.',
-    })
+    warnings.push({ level: 'warn', text: t('warn_fabric_compat') })
   }
 
   if (type === 'vanilla' && previousType === 'paper') {
-    warnings.push({
-      level: 'warn',
-      text: 'Vanilla не поддерживает плагины. Все плагины в папке plugins перестанут загружаться.',
-    })
+    warnings.push({ level: 'warn', text: t('warn_vanilla_plugins') })
   }
 
-  warnings.push({
-    level: 'warn',
-    text: 'Смена версии Minecraft (например 1.20 → 1.21) может повредить мир или вызвать баги на границах чанков.',
-  })
-
-  warnings.push({
-    level: 'info',
-    text: 'Сделай бэкап папки сервера перед переустановкой.',
-  })
+  warnings.push({ level: 'warn', text: t('warn_version_change') })
+  warnings.push({ level: 'info', text: t('warn_make_backup') })
 
   return warnings
 }
 
-function detectCoreType(hasJar) {
-  // We can't know previous type without storing it, so return null
-  return null
-}
-
 function ReinstallWarningModal({ type, previousType, onConfirm, onCancel }) {
-  const warnings = getWarnings(type, previousType)
+  const { t } = useLang()
+  const warnings = getWarnings(type, previousType, t)
   const hasError = warnings.some((w) => w.level === 'error')
 
   return (
@@ -66,8 +43,8 @@ function ReinstallWarningModal({ type, previousType, onConfirm, onCancel }) {
             <AlertTriangle size={16} className="text-yellow-400" />
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-[#ecedee]">Сервер уже установлен</p>
-            <p className="text-[11px] text-[#55556a] mt-0.5">Ознакомься с возможными последствиями перед заменой</p>
+            <p className="text-[14px] font-semibold text-[#ecedee]">{t('warning_already_installed')}</p>
+            <p className="text-[11px] text-[#55556a] mt-0.5">{t('warning_check_consequences')}</p>
           </div>
           <button onClick={onCancel} className="ml-auto text-[#55556a] hover:text-[#8b8b9e] transition-colors">
             <X size={15} />
@@ -102,7 +79,7 @@ function ReinstallWarningModal({ type, previousType, onConfirm, onCancel }) {
             onClick={onCancel}
             className="px-3 py-1.5 text-[12px] text-[#55556a] hover:text-[#8b8b9e] transition-colors"
           >
-            Отмена
+            {t('cancel')}
           </button>
           <button
             onClick={onConfirm}
@@ -112,7 +89,7 @@ function ReinstallWarningModal({ type, previousType, onConfirm, onCancel }) {
                 : 'bg-yellow-500 hover:bg-yellow-400 text-black'
             }`}
           >
-            {hasError ? 'Всё равно установить' : 'Понятно, установить'}
+            {hasError ? t('still_install_btn') : t('understood_install_btn')}
           </button>
         </div>
       </div>
@@ -121,6 +98,13 @@ function ReinstallWarningModal({ type, previousType, onConfirm, onCancel }) {
 }
 
 export default function DownloadPanel({ server, onDone }) {
+  const { t } = useLang()
+  const TYPES = {
+    paper: t('paper_desc'),
+    vanilla: t('vanilla_desc_dl'),
+    fabric: t('fabric_desc_dl'),
+  }
+
   const [type, setType] = useState('paper')
   const [versions, setVersions] = useState([])
   const [selectedVersion, setSelectedVersion] = useState('')
@@ -140,10 +124,7 @@ export default function DownloadPanel({ server, onDone }) {
     const info = await window.api.checkServerUpdate(server.name)
     setUpdateInfo(info)
     setCheckingUpdate(false)
-    if (info.available) {
-      // auto-select the right MC version
-      setType('paper')
-    }
+    if (info.available) setType('paper')
   }
 
   useEffect(() => {
@@ -178,17 +159,14 @@ export default function DownloadPanel({ server, onDone }) {
         setSelectedLoader(loaders[0] ?? '')
       }
     } catch (e) {
-      setError('Не удалось загрузить версии: ' + e.message)
+      setError(t('loading_versions') + ' ' + e.message)
     }
     setLoading(false)
   }
 
   function handleDownloadClick() {
-    if (alreadyInstalled) {
-      setShowWarning(true)
-    } else {
-      runDownload()
-    }
+    if (alreadyInstalled) setShowWarning(true)
+    else runDownload()
   }
 
   async function runDownload() {
@@ -207,7 +185,6 @@ export default function DownloadPanel({ server, onDone }) {
       }
       if (res.ok) {
         setProgress(100)
-        // Update server metadata so LeftPanel shows correct core badge
         await window.api.saveMeta(server.name, {
           core: type,
           mcVersion: selectedVersion,
@@ -225,20 +202,17 @@ export default function DownloadPanel({ server, onDone }) {
       <div className="p-6 max-w-sm">
         <div className="mb-5">
           <h2 className="text-[14px] font-semibold text-[#ecedee]">
-            {alreadyInstalled ? 'Переустановить сервер' : 'Установить сервер'}
+            {alreadyInstalled ? t('reinstall_title') : t('install_server_title')}
           </h2>
           <p className="text-[11px] text-[#55556a] mt-0.5">
-            {alreadyInstalled
-              ? 'Заменит существующий server.jar'
-              : 'Скачает server.jar и примет EULA автоматически'}
+            {alreadyInstalled ? t('reinstall_desc') : t('install_server_desc')}
           </p>
         </div>
 
-        {/* Already installed notice */}
         {alreadyInstalled && (
           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#26262f] border border-[#2a2a35] mb-4">
             <div className="w-1.5 h-1.5 rounded-full bg-[#1bd96a] shrink-0" />
-            <p className="text-[11px] text-[#8b8b9e] flex-1">Сервер уже установлен — выбери новую версию для замены</p>
+            <p className="text-[11px] text-[#8b8b9e] flex-1">{t('already_installed_notice')}</p>
             {server.core === 'paper' && (
               <button
                 onClick={checkUpdate}
@@ -246,53 +220,51 @@ export default function DownloadPanel({ server, onDone }) {
                 className="flex items-center gap-1 text-[10px] text-[#55556a] hover:text-[#8b8b9e] transition-colors shrink-0"
               >
                 <RefreshCw size={10} className={checkingUpdate ? 'animate-spin' : ''} />
-                {checkingUpdate ? 'Проверка…' : 'Проверить'}
+                {checkingUpdate ? t('checking_update') : t('check_update_btn')}
               </button>
             )}
           </div>
         )}
 
-        {/* Update available banner */}
         {updateInfo?.available && (
           <div className="flex items-start gap-2 p-3 rounded-xl bg-[#f59e0b0d] border border-[#f59e0b25] mb-4">
             <RefreshCw size={12} className="text-[#f59e0b] mt-0.5 shrink-0" />
             <div>
-              <p className="text-[12px] font-medium text-[#f59e0b]">Доступно обновление Paper</p>
-              <p className="text-[11px] text-[#55556a]">Билд #{updateInfo.latest} для MC {updateInfo.mcVersion} (у вас #{updateInfo.current})</p>
+              <p className="text-[12px] font-medium text-[#f59e0b]">Paper update available</p>
+              <p className="text-[11px] text-[#55556a]">Build #{updateInfo.latest} for MC {updateInfo.mcVersion} (current #{updateInfo.current})</p>
             </div>
           </div>
         )}
         {updateInfo && !updateInfo.available && (
           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#1bd96a08] border border-[#1bd96a25] mb-4">
             <Check size={11} className="text-[#1bd96a]" strokeWidth={3} />
-            <p className="text-[11px] text-[#1bd96a]">Установлен актуальный билд #{updateInfo.latest}</p>
+            <p className="text-[11px] text-[#1bd96a]">{t('up_to_date', { latest: updateInfo.latest })}</p>
           </div>
         )}
 
-        {/* Type selector */}
         <div className="flex gap-1.5 mb-1.5">
-          {Object.keys(TYPES).map((t) => (
+          {Object.keys(TYPES).map((tp) => (
             <button
-              key={t}
-              onClick={() => setType(t)}
+              key={tp}
+              onClick={() => setType(tp)}
               className={`px-3 py-1.5 rounded-lg text-[12px] font-medium capitalize transition-all ${
-                type === t
+                type === tp
                   ? 'bg-[#1bd96a18] text-[#1bd96a] border border-[#1bd96a33]'
                   : 'text-[#55556a] hover:text-[#8b8b9e] bg-[#1e1e26] border border-transparent'
               }`}
             >
-              {t}
+              {tp}
             </button>
           ))}
         </div>
         <p className="text-[11px] text-[#33334a] mb-5">{TYPES[type]}</p>
 
         {loading ? (
-          <p className="text-[12px] text-[#55556a]">Загрузка списка версий…</p>
+          <p className="text-[12px] text-[#55556a]">{t('loading_versions')}</p>
         ) : (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-[#8b8b9e]">Версия Minecraft</label>
+              <label className="text-[11px] font-medium text-[#8b8b9e]">{t('version_label')}</label>
               <VersionPicker versions={versions} value={selectedVersion} onChange={setSelectedVersion} />
             </div>
 
@@ -308,7 +280,7 @@ export default function DownloadPanel({ server, onDone }) {
             {progress !== null && progress < 100 && (
               <div>
                 <div className="flex justify-between text-[10px] text-[#55556a] mb-1">
-                  <span>Скачивание…</span><span>{progress}%</span>
+                  <span>{t('downloading')}</span><span>{progress}%</span>
                 </div>
                 <div className="h-1 bg-[#26262f] rounded-full overflow-hidden">
                   <div className="h-full bg-[#1bd96a] transition-all duration-200 rounded-full" style={{ width: `${progress}%` }} />
@@ -317,7 +289,7 @@ export default function DownloadPanel({ server, onDone }) {
             )}
             {progress === 100 && (
               <div className="flex items-center gap-1.5 text-[12px] text-[#1bd96a]">
-                <Check size={13} strokeWidth={3} /> Установлено
+                <Check size={13} strokeWidth={3} /> {t('installed_ok')}
               </div>
             )}
 
@@ -331,7 +303,7 @@ export default function DownloadPanel({ server, onDone }) {
               }`}
             >
               <Download size={13} strokeWidth={2.5} />
-              {alreadyInstalled ? 'Заменить ядро' : 'Скачать и установить'}
+              {alreadyInstalled ? t('replace_core_btn') : t('download_install_btn')}
             </button>
           </div>
         )}
