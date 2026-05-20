@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Minecraft server manager for Windows",
   "main": "out/main/index.js",
-  "author": "ServerMate",
+  "author": {
+    "name": "ServerMate",
+    "email": "nkplkaa@gmail.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
