@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld('api', {
   deleteBackup: (serverName, filename) => ipcRenderer.invoke('server:deleteBackup', { serverName, filename }),
   showFolderDialog: () => ipcRenderer.invoke('server:showFolderDialog'),
   importServer: (opts) => ipcRenderer.invoke('server:import', opts),
+  saveServerOrder: (order) => ipcRenderer.invoke('server:saveOrder', order),
+  setAutoBackup: (serverName, intervalMinutes) => ipcRenderer.invoke('server:setAutoBackup', { serverName, intervalMinutes }),
+  getAutoBackup: (serverName) => ipcRenderer.invoke('server:getAutoBackup', serverName),
+  onAutoBackupDone: (cb) => {
+    const handler = (_, data) => cb(data)
+    ipcRenderer.on('autoBackup:done', handler)
+    return () => ipcRenderer.removeListener('autoBackup:done', handler)
+  },
 
   // Downloads
   getVanillaVersions: () => ipcRenderer.invoke('download:vanillaVersions'),

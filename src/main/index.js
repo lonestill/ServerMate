@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, Notificati
 import { join } from 'path'
 import { deflateRawSync } from 'zlib'
 import { is, electronApp, optimizer } from '@electron-toolkit/utils'
-import { setupServerHandlers } from './serverManager'
+import { setupServerHandlers, startAutoBackupScheduler } from './serverManager'
 import { setupDownloadHandlers } from './downloader'
 import { setupPropertiesHandlers } from './properties'
 import { setupJavaHandlers } from './javaManager'
@@ -179,6 +179,7 @@ app.whenReady().then(() => {
 
   createWindow()
   createTray()
+  startAutoBackupScheduler(() => mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

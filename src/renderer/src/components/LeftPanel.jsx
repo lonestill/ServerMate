@@ -8,10 +8,12 @@ const CORE_COLORS = {
   vanilla: { bg: '#8b5cf615', text: '#a78bfa', label: 'Vanilla' },
 }
 
-export default function LeftPanel({ servers, selected, runningServer, onSelect, onCreateServer, onImportServer, onDeleteServer, onRenameServer, onOpenSettings }) {
+export default function LeftPanel({ servers, selected, runningServer, onSelect, onCreateServer, onImportServer, onDeleteServer, onRenameServer, onOpenSettings, onReorderServers }) {
   const { t } = useLang()
   const [ctx, setCtx] = useState(null)
   const ctxRef = useRef(null)
+  const [dragging, setDragging] = useState(null)   // name being dragged
+  const [dropIdx, setDropIdx] = useState(null)      // insertion index
 
   useEffect(() => {
     if (!ctx) return
@@ -63,7 +65,24 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0" data-tour="server-list">
+      <div
+        className="flex-1 overflow-y-auto px-2 pb-2 min-h-0"
+        data-tour="server-list"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault()
+          if (dragging === null || dropIdx === null) return
+          const names = servers.map(s => s.name)
+          const fromIdx = names.indexOf(dragging)
+          if (fromIdx === -1) return
+          names.splice(fromIdx, 1)
+          const to = dropIdx > fromIdx ? dropIdx - 1 : dropIdx
+          names.splice(to, 0, dragging)
+          setDragging(null)
+          setDropIdx(null)
+          onReorderServers?.(names)
+        }}
+      >
         {servers.length === 0 && (
           <button
             onClick={onCreateServer}
@@ -73,17 +92,31 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
             <span className="text-[11px] text-[#2a2a35] group-hover:text-[#33334a]">{t('create_server')}</span>
           </button>
         )}
-        {servers.map((s) => {
+        {servers.map((s, idx) => {
           const isRunning = runningServer === s.name
           const isSelected = selected?.name === s.name
           const coreStyle = CORE_COLORS[s.core]
+          const isDragging = dragging === s.name
+          const showDropBefore = dropIdx === idx && dragging !== s.name
+          const showDropAfter = dropIdx === idx + 1 && dragging !== s.name
 
           return (
+            <div key={s.name}>
+              {showDropBefore && <div className="h-0.5 bg-[#1bd96a] rounded-full mx-1 mb-0.5" />}
             <button
-              key={s.name}
+              draggable
+              onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragging(s.name) }}
+              onDragEnd={() => { setDragging(null); setDropIdx(null) }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const rect = e.currentTarget.getBoundingClientRect()
+                setDropIdx(e.clientY < rect.top + rect.height / 2 ? idx : idx + 1)
+              }}
               onClick={() => onSelect(s)}
               onContextMenu={(e) => handleContextMenu(e, s)}
-              className={`w-full flex items-start gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all mb-0.5 group ${
+              className={`w-full flex items-start gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all mb-0.5 group cursor-grab active:cursor-grabbing ${
+                isDragging ? 'opacity-40' :
                 isSelected
                   ? 'bg-[#1e1e26] text-[#ecedee]'
                   : 'text-[#8b8b9e] hover:text-[#ecedee] hover:bg-[#18181f]'
@@ -118,6 +151,8 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
                 </div>
               </div>
             </button>
+              {showDropAfter && <div className="h-0.5 bg-[#1bd96a] rounded-full mx-1 mt-0.5" />}
+            </div>
           )
         })}
       </div>

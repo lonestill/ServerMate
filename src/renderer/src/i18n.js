@@ -365,6 +365,18 @@ const T = {
     props_no_install: 'Сначала установи сервер на вкладке «Установка»',
     changes_after_restart: 'Изменения вступят в силу после перезапуска',
 
+    // Auto-backup schedule
+    auto_backup_label: 'Авто-бэкап',
+    auto_backup_desc: 'Автоматически сохранять мир пока сервер остановлен',
+    auto_backup_off: 'Выкл',
+    auto_backup_1h: 'Каждый час',
+    auto_backup_6h: 'Каждые 6 ч',
+    auto_backup_12h: 'Каждые 12 ч',
+    auto_backup_24h: 'Каждый день',
+    last_auto_backup: 'Последний авто-бэкап:',
+    auto_backup_never: 'Ещё не было',
+    auto_backup_running_note: 'Авто-бэкап пропускается пока сервер запущен',
+
     // Onboarding tour
     tour_welcome_title: 'Добро пожаловать в ServerMate!',
     tour_welcome_desc: 'Давай вместе создадим и настроим первый сервер. Займёт пару минут. Можно пропустить в любой момент.',
@@ -757,6 +769,18 @@ const T = {
     props_no_jar: 'Run the server once — it will create server.properties',
     props_no_install: 'First install the server on the "Install" tab',
     changes_after_restart: 'Changes will take effect after restart',
+
+    // Auto-backup schedule
+    auto_backup_label: 'Auto-backup',
+    auto_backup_desc: 'Automatically save the world while the server is stopped',
+    auto_backup_off: 'Off',
+    auto_backup_1h: 'Every hour',
+    auto_backup_6h: 'Every 6 h',
+    auto_backup_12h: 'Every 12 h',
+    auto_backup_24h: 'Every day',
+    last_auto_backup: 'Last auto-backup:',
+    auto_backup_never: 'Never yet',
+    auto_backup_running_note: 'Auto-backup is skipped while the server is running',
 
     // Onboarding tour
     tour_welcome_title: 'Welcome to ServerMate!',
