@@ -130,6 +130,49 @@ function getDirSize(dir) {
   return size
 }
 
+async function doBackup(serverName) {
+  const serverDir = join(getServersDir(), serverName)
+  const worldDir = join(serverDir, 'world')
+  if (!existsSync(worldDir)) return { ok: false, error: 'Папка world не найдена — запусти сервер хотя бы раз' }
+  const backupsDir = join(serverDir, 'backups')
+  mkdirSync(backupsDir, { recursive: true })
+  const ts = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '-')
+  const dest = join(backupsDir, `world-${ts}.zip`)
+  try {
+    await zipDir(worldDir, dest)
+    return { ok: true, path: dest, filename: `world-${ts}.zip` }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+}
+
+export function startAutoBackupScheduler(getWindow) {
+  setInterval(async () => {
+    const dir = getServersDir()
+    try {
+      const { readdirSync, statSync } = require('fs')
+      const servers = readdirSync(dir).filter(n => {
+        try { return statSync(join(dir, n)).isDirectory() } catch { return false }
+      })
+      for (const name of servers) {
+        if (runningServerName === name) continue
+        const meta = readMeta(name)
+        const interval = meta.autoBackupInterval
+        if (!interval || interval <= 0) continue
+        const lastAt = meta.lastAutoBackupAt ? new Date(meta.lastAutoBackupAt) : null
+        const now = new Date()
+        if (!lastAt || (now - lastAt) >= interval * 60 * 1000) {
+          const res = await doBackup(name)
+          if (res.ok) {
+            writeMeta(name, { ...readMeta(name), lastAutoBackupAt: now.toISOString() })
+            getWindow()?.webContents.send('autoBackup:done', { serverName: name, filename: res.filename })
+          }
+        }
+      }
+    } catch {}
+  }, 60_000)
+}
+
 export function setupServerHandlers(ipcMain, getWindow) {
   ipcMain.handle('server:start', async (_, { serverName }) => {
     if (serverProcess) return { ok: false, error: 'Сервер уже запущен' }
@@ -284,7 +327,9 @@ export function setupServerHandlers(ipcMain, getWindow) {
     const { readdirSync, statSync } = await import('fs')
     const dir = getServersDir()
     mkdirSync(dir, { recursive: true })
-    return readdirSync(dir)
+    const cfg = readConfig()
+    const order = cfg.serverOrder || []
+    const servers = readdirSync(dir)
       .filter((name) => statSync(join(dir, name)).isDirectory())
       .map((name) => {
         const jar = findServerJar(join(dir, name))
@@ -295,6 +340,21 @@ export function setupServerHandlers(ipcMain, getWindow) {
           ...readMeta(name),
         }
       })
+    servers.sort((a, b) => {
+      const ai = order.indexOf(a.name)
+      const bi = order.indexOf(b.name)
+      if (ai === -1 && bi === -1) return 0
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    })
+    return servers
+  })
+
+  ipcMain.handle('server:saveOrder', (_, order) => {
+    const cfg = readConfig()
+    writeConfig({ ...cfg, serverOrder: order })
+    return { ok: true }
   })
 
   ipcMain.handle('server:create', async (_, { name }) => {
@@ -362,22 +422,19 @@ export function setupServerHandlers(ipcMain, getWindow) {
 
   // Backup world folder → backups/world-YYYY-MM-DD-HH-MM.zip
   ipcMain.handle('server:backup', async (_, serverName) => {
-    const serverDir = join(getServersDir(), serverName)
-    const worldDir = join(serverDir, 'world')
-    if (!existsSync(worldDir)) return { ok: false, error: 'Папка world не найдена — запусти сервер хотя бы раз' }
+    return doBackup(serverName)
+  })
 
-    const backupsDir = join(serverDir, 'backups')
-    mkdirSync(backupsDir, { recursive: true })
+  // Auto-backup schedule per server
+  ipcMain.handle('server:setAutoBackup', (_, { serverName, intervalMinutes }) => {
+    const meta = readMeta(serverName)
+    writeMeta(serverName, { ...meta, autoBackupInterval: intervalMinutes })
+    return { ok: true }
+  })
 
-    const ts = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '-')
-    const dest = join(backupsDir, `world-${ts}.zip`)
-
-    try {
-      await zipDir(worldDir, dest)
-      return { ok: true, path: dest, filename: `world-${ts}.zip` }
-    } catch (e) {
-      return { ok: false, error: e.message }
-    }
+  ipcMain.handle('server:getAutoBackup', (_, serverName) => {
+    const meta = readMeta(serverName)
+    return { interval: meta.autoBackupInterval || 0, lastAt: meta.lastAutoBackupAt || null }
   })
 
   // List backups for a server

@@ -82,6 +82,11 @@ function AppInner() {
     await refreshServers()
   }
 
+  async function handleReorderServers(order) {
+    await window.api.saveServerOrder(order)
+    await refreshServers()
+  }
+
   async function handleRename(oldServer, newName) {
     const res = await window.api.renameServer(oldServer.name, newName)
     if (!res.ok) return res.error
@@ -110,6 +115,7 @@ function AppInner() {
         onDeleteServer={handleDeleteServer}
         onRenameServer={setRenameTarget}
         onOpenSettings={() => setShowSettings(true)}
+        onReorderServers={handleReorderServers}
       />
 
       <div className="flex-1 overflow-hidden">

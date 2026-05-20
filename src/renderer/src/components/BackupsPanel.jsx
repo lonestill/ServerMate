@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Archive, FolderOpen, Trash2, RefreshCw, HardDrive } from '../Icons'
+import { Archive, FolderOpen, Trash2, RefreshCw, HardDrive, Clock } from '../Icons'
 import { useLang } from '../LangContext'
 
 function fmtSize(bytes) {
@@ -15,6 +15,14 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+const AUTO_INTERVALS = [
+  { value: 0,    key: 'auto_backup_off' },
+  { value: 60,   key: 'auto_backup_1h'  },
+  { value: 360,  key: 'auto_backup_6h'  },
+  { value: 720,  key: 'auto_backup_12h' },
+  { value: 1440, key: 'auto_backup_24h' },
+]
+
 export default function BackupsPanel({ server, isRunning }) {
   const { t } = useLang()
   const [backups, setBackups] = useState([])
@@ -23,15 +31,35 @@ export default function BackupsPanel({ server, isRunning }) {
   const [backupDone, setBackupDone] = useState(false)
   const [error, setError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [autoInterval, setAutoInterval] = useState(0)
+  const [lastAutoAt, setLastAutoAt] = useState(null)
 
   async function load() {
     setLoading(true)
-    const list = await window.api.listBackups(server.name)
+    const [list, auto] = await Promise.all([
+      window.api.listBackups(server.name),
+      window.api.getAutoBackup(server.name),
+    ])
     setBackups(list)
+    setAutoInterval(auto.interval || 0)
+    setLastAutoAt(auto.lastAt || null)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [server.name])
+
+  // Listen for auto-backup completion
+  useEffect(() => {
+    const unsub = window.api.onAutoBackupDone(({ serverName }) => {
+      if (serverName === server.name) load()
+    })
+    return unsub
+  }, [server.name])
+
+  async function handleSetInterval(val) {
+    setAutoInterval(val)
+    await window.api.setAutoBackup(server.name, val)
+  }
 
   async function handleBackup() {
     setBacking(true)
@@ -79,6 +107,43 @@ export default function BackupsPanel({ server, isRunning }) {
               {backing ? t('creating_backup') : backupDone ? t('done') : t('create_backup_btn')}
             </button>
           </div>
+        </div>
+
+        {/* Auto-backup schedule */}
+        <div className="mb-5 p-3.5 bg-[#1e1e26] border border-[#2a2a35] rounded-xl flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <Clock size={13} className="text-[#55556a] shrink-0" />
+            <div className="flex-1">
+              <p className="text-[12px] font-medium text-[#ecedee]">{t('auto_backup_label')}</p>
+              <p className="text-[10px] text-[#33334a] mt-0.5">{t('auto_backup_desc')}</p>
+            </div>
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {AUTO_INTERVALS.map(({ value, key }) => (
+              <button
+                key={value}
+                onClick={() => handleSetInterval(value)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  autoInterval === value
+                    ? 'bg-[#1bd96a20] text-[#1bd96a] border border-[#1bd96a40]'
+                    : 'bg-[#17171c] text-[#55556a] border border-[#2a2a35] hover:border-[#33333f] hover:text-[#8b8b9e]'
+                }`}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
+          {autoInterval > 0 && (
+            <p className="text-[10px] text-[#33334a] flex items-center gap-1">
+              <span>{t('last_auto_backup')}</span>
+              <span className="text-[#55556a]">
+                {lastAutoAt ? fmtDate(lastAutoAt) : t('auto_backup_never')}
+              </span>
+            </p>
+          )}
+          {autoInterval > 0 && isRunning && (
+            <p className="text-[10px] text-yellow-500/70">{t('auto_backup_running_note')}</p>
+          )}
         </div>
 
         {isRunning && (
