@@ -3,6 +3,7 @@ import { LangProvider, useLang } from './LangContext'
 import LeftPanel from './components/LeftPanel'
 import ServerPanel from './components/ServerPanel'
 import CreateServerModal from './components/CreateServerModal'
+import OnboardingTour, { TOUR_KEY } from './components/OnboardingTour'
 import { Plus, AlertTriangle, Check, X, FolderInput } from './Icons'
 import AppSettings from './components/AppSettings'
 
@@ -25,6 +26,8 @@ function AppInner() {
   const [renameTarget, setRenameTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [showTour, setShowTour] = useState(false)
+  const [activeTab, setActiveTab] = useState('console')
   const autostartedRef = useRef(false)
 
   async function refreshServers() {
@@ -92,7 +95,7 @@ function AppInner() {
 
   // Show language picker on first launch
   if (lang === null) {
-    return <LangPickerModal onSelect={setLang} />
+    return <LangPickerModal onSelect={(l) => { setLang(l); setShowTour(true) }} />
   }
 
   return (
@@ -118,6 +121,8 @@ function AppInner() {
             onStarted={(name) => setRunningServer(name)}
             onStopped={() => setRunningServer(null)}
             onRefresh={refreshServers}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
         ) : (
           <EmptyState onCreateServer={() => setShowCreate(true)} onImportServer={() => setShowImport(true)} />
@@ -160,7 +165,19 @@ function AppInner() {
         />
       )}
 
-      {showSettings && <AppSettings onClose={() => setShowSettings(false)} />}
+      {showSettings && <AppSettings onClose={() => setShowSettings(false)} onReplayTour={() => { setShowSettings(false); setShowTour(true) }} />}
+
+      {showTour && (
+        <OnboardingTour
+          onDone={() => setShowTour(false)}
+          onCreateServer={() => setShowCreate(true)}
+          onSwitchTab={setActiveTab}
+          wizardOpen={showCreate}
+          serverCreated={servers.length > 0}
+          activeTab={activeTab}
+          hasServer={!!selected}
+        />
+      )}
 
       {renameTarget && (
         <RenameModal

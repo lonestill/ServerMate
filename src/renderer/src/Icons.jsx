@@ -52,6 +52,7 @@ import {
   IconFolderPlus,
   IconRotateClockwise,
   IconZip,
+  IconBook2,
 } from '@tabler/icons-react'
 
 function wrap(TablerIcon) {
@@ -115,3 +116,4 @@ export const EyeOff           = wrap(IconEyeOff)
 export const ExternalLink     = wrap(IconExternalLink)
 export const ArrowUpCircle    = wrap(IconArrowUpCircle)
 export const RefreshCcw       = wrap(IconRefresh)
+export const BookOpen         = wrap(IconBook2)

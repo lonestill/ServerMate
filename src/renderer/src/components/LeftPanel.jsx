@@ -45,7 +45,7 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
 
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
         <span className="text-[10px] font-semibold text-[#33334a] uppercase tracking-widest">{t('servers')}</span>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5" data-tour="create-btn">
           <button
             onClick={onImportServer}
             className="w-5 h-5 flex items-center justify-center rounded-md text-[#55556a] hover:text-[#8b8b9e] hover:bg-[#1e1e26] transition-all"
@@ -63,7 +63,7 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0" data-tour="server-list">
         {servers.length === 0 && (
           <button
             onClick={onCreateServer}
@@ -122,7 +122,7 @@ export default function LeftPanel({ servers, selected, runningServer, onSelect, 
         })}
       </div>
 
-      <div className="border-t border-[#2a2a35] p-2 shrink-0">
+      <div className="border-t border-[#2a2a35] p-2 shrink-0" data-tour="settings-btn">
         <button
           onClick={onOpenSettings}
           className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] text-[#33334a] hover:text-[#55556a] hover:bg-[#1e1e26] transition-all"
