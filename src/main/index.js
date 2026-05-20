@@ -159,6 +159,17 @@ function setupAppHandlers() {
 
   ipcMain.handle('app:quit', () => { app.isQuiting = true; app.quit() })
   ipcMain.handle('app:showWindow', () => { mainWindow?.show(); mainWindow?.focus() })
+
+  ipcMain.handle('app:getPublicIp', () => new Promise((resolve) => {
+    const https = require('https')
+    const req = https.get('https://api.ipify.org', { timeout: 5000 }, (res) => {
+      let data = ''
+      res.on('data', chunk => data += chunk)
+      res.on('end', () => resolve(data.trim()))
+    })
+    req.on('error', () => resolve(null))
+    req.on('timeout', () => { req.destroy(); resolve(null) })
+  }))
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

@@ -15,9 +15,11 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
   const { t } = useLang()
   const { players = [], ramMb = null, uptime = '', serverReady = false } = liveStats ?? {}
   const [localIp, setLocalIp] = useState('')
+  const [publicIp, setPublicIp] = useState(null) // null=loading, ''=failed, 'x.x.x.x'=ok
   const [port, setPort] = useState('25565')
   const [copied, setCopied] = useState(false)
   const [ipCopied, setIpCopied] = useState(false)
+  const [pubCopied, setPubCopied] = useState(false)
   const [worlds, setWorlds] = useState([])
   const [lastBackup, setLastBackup] = useState(null)
   const [starting, setStarting] = useState(false)
@@ -29,6 +31,7 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
 
   useEffect(() => {
     window.api.getLocalIp().then(setLocalIp)
+    window.api.getPublicIp().then(ip => setPublicIp(ip || ''))
     window.api.readProps(server.name).then(p => {
       if (p?.['server-port']) setPort(p['server-port'])
     })
@@ -82,6 +85,13 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
     navigator.clipboard.writeText(`${localIp}:${port}`)
     setIpCopied(true)
     setTimeout(() => setIpCopied(false), 2000)
+  }
+
+  function copyPubIp() {
+    if (!publicIp) return
+    navigator.clipboard.writeText(publicIp)
+    setPubCopied(true)
+    setTimeout(() => setPubCopied(false), 2000)
   }
 
   const totalWorldSize = worlds.reduce((s, w) => s + w.size, 0)
@@ -160,20 +170,56 @@ export default function OverviewPanel({ server, isRunning, liveStats, onStarted,
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">
-            <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-2">{t('address')}</p>
-            {localIp ? (
-              <button
-                onClick={copyIp}
-                className={`flex items-center gap-1.5 text-[12px] font-mono transition-colors ${ipCopied ? 'text-[#1bd96a]' : 'text-[#ecedee] hover:text-[#1bd96a]'}`}
-              >
-                {ipCopied ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
-                {ipCopied ? t('copied') : `${localIp}:${port}`}
-              </button>
-            ) : (
-              <span className="text-[12px] text-[#33334a]">—</span>
-            )}
-            <p className="text-[10px] text-[#33334a] mt-1">{t('local_net_hint')}</p>
+          <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl flex flex-col gap-2">
+            {/* Local IP */}
+            <div>
+              <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-1.5">{t('address')}</p>
+              {localIp ? (
+                <button
+                  onClick={copyIp}
+                  className={`flex items-center gap-1.5 text-[12px] font-mono transition-colors ${ipCopied ? 'text-[#1bd96a]' : 'text-[#ecedee] hover:text-[#1bd96a]'}`}
+                >
+                  {ipCopied ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
+                  {ipCopied ? t('copied') : `${localIp}:${port}`}
+                </button>
+              ) : (
+                <span className="text-[12px] text-[#33334a]">—</span>
+              )}
+              <p className="text-[10px] text-[#33334a] mt-0.5">{t('local_net_hint')}</p>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-[#2a2a35]" />
+
+            {/* Public IP — spoiler */}
+            <div>
+              <p className="text-[10px] font-semibold text-[#33334a] uppercase tracking-wider mb-1.5">{t('public_ip_label')}</p>
+              {publicIp === null ? (
+                <span className="text-[11px] text-[#33334a]">{t('public_ip_loading')}</span>
+              ) : publicIp === '' ? (
+                <span className="text-[11px] text-[#33334a]">{t('public_ip_failed')}</span>
+              ) : pubCopied ? (
+                <span className="flex items-center gap-1.5 text-[12px] font-mono text-[#1bd96a]">
+                  <Check size={11} strokeWidth={3} /> {t('copied')}
+                </span>
+              ) : (
+                <button
+                  onClick={copyPubIp}
+                  className="group/pub flex items-center gap-1.5 text-[12px] font-mono text-[#ecedee] hover:text-[#1bd96a] transition-colors"
+                >
+                  <Copy size={11} className="shrink-0 opacity-0 group-hover/pub:opacity-100 transition-opacity" />
+                  <span
+                    className="transition-all duration-200 select-none"
+                    style={{ filter: 'blur(5px)' }}
+                    onMouseEnter={e => e.currentTarget.style.filter = 'none'}
+                    onMouseLeave={e => e.currentTarget.style.filter = 'blur(5px)'}
+                  >
+                    {publicIp}
+                  </span>
+                </button>
+              )}
+              <p className="text-[10px] text-[#33334a] mt-0.5">{t('public_ip_hint')}</p>
+            </div>
           </div>
 
           <div className="p-3 bg-[#1e1e26] border border-[#2a2a35] rounded-xl">

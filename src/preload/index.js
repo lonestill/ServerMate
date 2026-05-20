@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('api', {
   checkServerUpdate: (name) => ipcRenderer.invoke('server:checkUpdate', name),
 
   // App-level
+  getPublicIp: () => ipcRenderer.invoke('app:getPublicIp'),
   getAppSettings: () => ipcRenderer.invoke('app:getSettings'),
   setAppSettings: (data) => ipcRenderer.invoke('app:setSettings', data),
   notify: (title, body) => ipcRenderer.invoke('app:notify', { title, body }),
