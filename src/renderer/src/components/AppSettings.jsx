@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { X, Bell, Monitor, Globe, Info } from '../Icons'
+import { X, Bell, Monitor, Globe, Info, BookOpen } from '../Icons'
 import { useLang } from '../LangContext'
 
-export default function AppSettings({ onClose }) {
+export default function AppSettings({ onClose, onReplayTour }) {
   const { lang, setLang, t } = useLang()
   const [settings, setSettings] = useState(null)
   const [saved, setSaved] = useState(false)
@@ -55,6 +55,23 @@ export default function AppSettings({ onClose }) {
             checked={settings.notifications}
             onChange={() => toggle('notifications')}
           />
+
+          {/* Replay tour */}
+          <div className="flex items-start gap-3 p-3 bg-[#17171c] border border-[#2a2a35] rounded-xl">
+            <div className="w-8 h-8 rounded-lg bg-[#1e1e26] flex items-center justify-center shrink-0 mt-0.5">
+              <BookOpen size={14} className="text-[#55556a]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-medium text-[#ecedee]">{t('replay_tour')}</p>
+              <p className="text-[11px] text-[#55556a] mt-0.5 leading-relaxed">{t('replay_tour_desc')}</p>
+            </div>
+            <button
+              onClick={onReplayTour}
+              className="shrink-0 px-2.5 py-1 bg-[#26262f] hover:bg-[#2e2e3a] border border-[#33333f] text-[11px] text-[#8b8b9e] rounded-lg transition-colors"
+            >
+              ▶
+            </button>
+          </div>
 
           {/* Language selector */}
           <div className="flex items-start gap-3 p-3 bg-[#17171c] border border-[#2a2a35] rounded-xl">

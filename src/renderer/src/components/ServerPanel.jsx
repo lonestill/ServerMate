@@ -13,9 +13,11 @@ import CrashReportsPanel from './CrashReportsPanel'
 import { FolderOpen } from '../Icons'
 import { useLang } from '../LangContext'
 
-export default function ServerPanel({ server, runningServer, onStarted, onStopped, onRefresh }) {
+export default function ServerPanel({ server, runningServer, onStarted, onStopped, onRefresh, activeTab, onTabChange }) {
   const { t } = useLang()
-  const [tab, setTab] = useState('console')
+  const [internalTab, setInternalTab] = useState('console')
+  const tab = activeTab ?? internalTab
+  const setTab = onTabChange ?? setInternalTab
   const [liveStats, setLiveStats] = useState({ players: [], ramMb: null, uptime: '', serverReady: false })
   const isRunning = runningServer === server.name
 
@@ -42,7 +44,7 @@ export default function ServerPanel({ server, runningServer, onStarted, onStoppe
           <span className="text-[10px] text-[#33334a] shrink-0">{isRunning ? t('running') : t('stopped')}</span>
         </div>
 
-        <div className="flex items-center gap-0.5 mx-2">
+        <div className="flex items-center gap-0.5 mx-2" data-tour="tabs-area">
           {TABS.map((tb) => (
             <button
               key={tb.id}
